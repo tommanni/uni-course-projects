@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Nelilaskin</string>
+    <string name="operator_plus">+</string>
+    <string name="operator_minus">-</string>
+    <string name="operator_multiply">X</string>
+    <string name="operator_divide">/</string>
+    <string name="equals_sign">=</string>
+    <string name="calculate_result">LASKE</string>
+    <string name="log_screen_button_text">LOGI</string>
+    <string name="calculator_screen_button">LASKIN</string>
+</resources>
