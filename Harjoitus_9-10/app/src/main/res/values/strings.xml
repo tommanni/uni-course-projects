@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">WorkoutRecordsApp v2.0</string>
+    <string name="details_screen">Details</string>
+    <string name="back_button">Back button</string>
+    <string name="record_entry_title">Add a Record</string>
+    <string name="no_record_entries">No records added.\nTap + to add.</string>
+    <string name="edit_record_title">Edit Record</string>
+    <string name="login_title">Log In</string>
+    <string name="sign_up_title">Sign Up</string>
+
+    <!-- Facebook application ID and custom URL scheme (app ID prefixed by 'fb'). -->
+    <string name="facebook_application_id" translatable="false">YOUR_APP_ID</string>
+    <string name="facebook_login_protocol_scheme" translatable="false">fbYOUR_APP_ID</string>
+</resources>
