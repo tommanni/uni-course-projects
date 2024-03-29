@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">harjoitus-17</string>
+    <string name="example_appwidget_description">EuroConverter app widget</string>
 </resources>
