@@ -1,11 +1,13 @@
 package com.example.disctrack.data.repository
 
+import androidx.compose.ui.text.toLowerCase
 import com.example.disctrack.data.network.CourseApiService
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.model.CourseResponse
 import com.example.disctrack.data.model.CoursesResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
+import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -24,9 +26,9 @@ class NetworkCourseRepository @Inject constructor(
 ) : CourseRepository {
     // Get all courses located in Finland from api
     override suspend fun getAllCourses(): CoursesResponse = courseApiService.getAllCourses()
-    // Get courses by name
+    // Get courses by name, add % to get courses whose name contains name parameter
     override suspend fun getCoursesByName(name: String): CoursesResponse {
-        return courseApiService.getCoursesByName(name)
+        return courseApiService.getCoursesByName("${name.lowercase(Locale.ROOT)}%")
     }
     // Get a single course by id
     override suspend fun getCourseById(id: String): CourseResponse {

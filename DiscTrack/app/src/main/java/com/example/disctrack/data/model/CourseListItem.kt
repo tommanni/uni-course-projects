@@ -53,7 +53,7 @@ data class CourseListItem(
  */
 @Serializable
 data class CoursesResponse(
-    val courses: List<CourseListItem>,
+    val courses: List<CourseListItem>? = listOf(),
     @SerialName(value = "Errors")
     val errors: List<String>
 )
