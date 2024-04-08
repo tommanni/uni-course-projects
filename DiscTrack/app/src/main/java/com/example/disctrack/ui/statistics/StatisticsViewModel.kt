@@ -1,4 +1,9 @@
 package com.example.disctrack.ui.statistics
 
-class StatisticsViewModel {
+import androidx.lifecycle.ViewModel
+
+class StatisticsViewModel(
+
+) : ViewModel() {
+
 }

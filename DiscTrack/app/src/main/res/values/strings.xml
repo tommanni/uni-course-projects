@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">DiscTrack</string>
+
+    <string name="login_title">Log In</string>
+    <string name="sign_up_title">Sign Up</string>
+    <string name="courses_title">Courses</string>
+    <string name="statistics_title">Statistics</string>
+    <string name="switch_view_list">LIST</string>
+    <string name="switch_view_map">MAP</string>
+    <string name="start_a_round_button">Start a round</string>
+    <string name="course_search_textfield_label">Find course or location</string>
+    <string name="search_icon_description">Course search icon</string>
+</resources>
