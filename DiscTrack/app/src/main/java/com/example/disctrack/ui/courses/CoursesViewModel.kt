@@ -1,18 +1,39 @@
 package com.example.disctrack.ui.courses
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.os.Looper
 import android.util.Log
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.doublePreferencesKey
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.repository.CourseRepository
 import com.example.disctrack.ui.utils.calculateDistanceMeters
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.maps.model.LatLng
+import dagger.hilt.android.internal.Contexts.getApplication
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.IOException
 import javax.inject.Inject
@@ -23,18 +44,38 @@ import javax.inject.Inject
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class CoursesViewModel @Inject constructor(
-    private val courseRepository: CourseRepository
+    private val courseRepository: CourseRepository,
+    private val locationClient: FusedLocationProviderClient,
+    private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
-    private val _coursesUiState = MutableStateFlow(CoursesUiState())
+
+    private val _coursesUiState = MutableStateFlow(CoursesUiState(
+        userLastKnownLocation = getLastSavedLocation())
+    )
     val coursesUiState: StateFlow<CoursesUiState> = _coursesUiState
 
     // Flow to handle user input for searching courses
     private val searchInputFlow = MutableSharedFlow<String>()
 
+    // Define a location callback object to handle location updates.
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(locationResult: LocationResult) {
+            // Extract the last known location from the location result
+            locationResult.lastLocation?.let {
+                _coursesUiState.value = _coursesUiState.value.copy(userLastKnownLocation = it)
+            }
+        }
+    }
+
     init {
         getAllParentCourses()
+
+        _coursesUiState.value = _coursesUiState.value.copy(
+            userLastKnownLocation = getLastSavedLocation()
+        )
         // Collect values from input flow, debounce them for 300 milliseconds using the debounce
-        // operator, and call the getCoursesByNameOrLocation function with the debounced input value
+        // operator, and call the getCoursesByNameOrLocation function with the debounced input value.
+        // This reduces the amount of api calls made.
         viewModelScope.launch {
             searchInputFlow
                 .debounce(300)
@@ -75,7 +116,7 @@ class CoursesViewModel @Inject constructor(
     private fun getCoursesByNameOrLocation(value: String) {
         viewModelScope.launch {
             try {
-                // If user hasn't entered atl east 3 characters, set nearby courses,
+                // If user hasn't entered at least 3 characters, set nearby courses,
                 val nearbyCourses = if (value.length < 3) {
                     _coursesUiState.value.nearbyCourses
                 } else {
@@ -105,15 +146,15 @@ class CoursesViewModel @Inject constructor(
         }
     }
 
-    // Filter and sort courses that are in a 25 kilometer range to the user's location
+    // Filter and sort courses that are within a 25 kilometer radius to the user's current location
     private fun getNearbySortedCourses() {
-        val linnainmaa = LatLng(61.487350, 23.889460)
+        val userLocation = _coursesUiState.value.userLastKnownLocation
         val nearbySortedCourses = _coursesUiState.value.courses.filter { course ->
             val lat = course.lat?.toDoubleOrNull()
             val lon = course.lon?.toDoubleOrNull()
             if (lat != null && lon != null)  {
                 calculateDistanceMeters(
-                    linnainmaa.latitude, linnainmaa.longitude, lat, lon
+                    userLocation.latitude, userLocation.longitude, lat, lon
                 ) < 25000.0
             } else {
                 false
@@ -121,13 +162,61 @@ class CoursesViewModel @Inject constructor(
         }.sortedBy { course ->
             val lat = course.lat?.toDoubleOrNull() ?: 0.0
             val lon = course.lon?.toDoubleOrNull() ?: 0.0
-            calculateDistanceMeters(linnainmaa.latitude, linnainmaa.longitude, lat, lon)
+            calculateDistanceMeters(userLocation.latitude, userLocation.longitude, lat, lon)
         }
-        Log.d("getNearbyCourses size:", "${nearbySortedCourses.size}")
         _coursesUiState.value = _coursesUiState.value.copy(
             shownCourses = nearbySortedCourses,
             nearbyCourses = nearbySortedCourses
         )
+    }
+
+    // Stop location updates
+    fun stopLocationUpdates() {
+        locationClient.removeLocationUpdates(locationCallback)
+        saveLastKnownLocation()
+    }
+
+    // Start location updates if user has given location permissions
+    @SuppressLint("MissingPermission")
+    fun startLocationUpdates(hasPermission: Boolean) {
+        Log.d("StartLocationUpdates: ", hasPermission.toString())
+
+        if (hasPermission) {
+            locationClient.requestLocationUpdates(
+                LocationRequest.Builder(10000).build(),
+                locationCallback,
+                Looper.getMainLooper()
+            )
+        }
+    }
+
+    // Save last known user location to DataStore
+    private fun saveLastKnownLocation() {
+        val LATITUDE = doublePreferencesKey("lat")
+        val LONGITUDE = doublePreferencesKey("lon")
+        viewModelScope.launch {
+            dataStore.edit { preferences ->
+                preferences[LATITUDE] = _coursesUiState.value.userLastKnownLocation.latitude
+                preferences[LONGITUDE] = _coursesUiState.value.userLastKnownLocation.longitude
+            }
+        }
+    }
+
+    // Get last known user location from datastore if exists, else default values
+    private fun getLastSavedLocation(): Location {
+        val LATITUDE = doublePreferencesKey("lat")
+        val LONGITUDE = doublePreferencesKey("lon")
+        val location = Location("")
+
+        viewModelScope.launch {
+            dataStore.data.first().let { preferences ->
+                location.latitude = preferences[LATITUDE] ?:  63.359
+                location.longitude = preferences[LONGITUDE] ?:  25.843
+            }
+        }
+
+        Log.d("getLastSvavedLocation(): ", location.latitude.toString())
+        return location
     }
 }
 
@@ -137,5 +226,7 @@ class CoursesViewModel @Inject constructor(
 data class CoursesUiState(
     val courses: List<CourseListItem> = listOf(),
     val shownCourses: List<CourseListItem> = listOf(),
-    val nearbyCourses: List<CourseListItem> = listOf()
+    val shownCoursesOnMap: List<CourseListItem> = listOf(),
+    val nearbyCourses: List<CourseListItem> = listOf(),
+    val userLastKnownLocation: Location
 )

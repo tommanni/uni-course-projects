@@ -19,6 +19,7 @@ import com.example.disctrack.ui.statistics.StatisticsScreen
 @Composable
 fun DiscTrackNavHost(
     navController: NavHostController,
+    hasLocationPermission: Boolean,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -35,7 +36,9 @@ fun DiscTrackNavHost(
                 HomeScreen()
             }
             composable(route = CoursesDestination.route) {
-                CoursesScreen()
+                CoursesScreen(
+                    hasLocationPermission = hasLocationPermission
+                )
             }
             composable(route = StatisticsDestination.route) {
                 StatisticsScreen()

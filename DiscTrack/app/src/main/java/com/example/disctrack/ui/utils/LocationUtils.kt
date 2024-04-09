@@ -1,6 +1,17 @@
 package com.example.disctrack.ui.utils
 
 import android.location.Location
+import androidx.compose.ui.geometry.Size
+import com.google.android.gms.maps.model.LatLng
+import kotlin.math.PI
+import kotlin.math.asin
+import kotlin.math.atan
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
+
 
 /**
  * Returns the distance between two points in meters as a double

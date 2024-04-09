@@ -12,10 +12,9 @@ import dagger.hilt.android.scopes.ViewModelScoped
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
-import javax.inject.Singleton
 
 /**
- * Module for dependency injection with hilt
+ * Network module for dependency injection with hilt
  */
 @Module
 @InstallIn(ViewModelComponent::class)

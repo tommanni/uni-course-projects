@@ -1,5 +1,6 @@
 package com.example.disctrack.ui.courses
 
+import android.location.Location
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
@@ -24,33 +26,47 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.disctrack.R
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.ui.navigation.NavigationDestination
+import com.google.android.gms.maps.Projection
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.android.gms.maps.model.VisibleRegion
+import com.google.maps.android.compose.AdvancedMarker
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 
 object CoursesDestination: NavigationDestination {
     override val route: String = "courses"
@@ -63,13 +79,24 @@ fun DiscTrackTopAppBar(
     title: String,
     setShowingListView: () -> Unit,
     showingListView: Boolean,
+    startLocationUpdates: (Boolean) -> Unit,
+    stopLocationUpdates: () -> Unit,
+    hasLocationPermission: Boolean,
     modifier: Modifier = Modifier,
 ) {
     CenterAlignedTopAppBar(
         title = { Text(text = title) },
         actions = {
             IconButton(
-                onClick = { setShowingListView() },
+                onClick = {
+                    setShowingListView()
+                    // If user is viewing map, start location updates else stop
+                    if (!showingListView) {
+                        stopLocationUpdates()
+                    } else {
+                        startLocationUpdates(hasLocationPermission)
+                    }
+                          },
                 modifier = modifier
                     .padding(end = dimensionResource(id = R.dimen.padding_small))
             ) {
@@ -87,6 +114,7 @@ fun DiscTrackTopAppBar(
 
 @Composable
 fun CoursesScreen(
+    hasLocationPermission: Boolean,
     viewModel: CoursesViewModel = hiltViewModel()
 ) {
     val coursesUiState by viewModel.coursesUiState.collectAsState()
@@ -99,7 +127,10 @@ fun CoursesScreen(
             DiscTrackTopAppBar(
                 title = "Courses",
                 setShowingListView = { showingListView = !showingListView },
-                showingListView = showingListView
+                showingListView = showingListView,
+                startLocationUpdates = viewModel::startLocationUpdates,
+                stopLocationUpdates = viewModel::stopLocationUpdates,
+                hasLocationPermission = hasLocationPermission
             )
         }
     ) { paddingValues ->
@@ -115,7 +146,8 @@ fun CoursesScreen(
             )
             CoursesBody(
                 courses = coursesUiState.shownCourses,
-                showingListView = showingListView
+                showingListView = showingListView,
+                userLastKnownLocation = coursesUiState.userLastKnownLocation
             )
         }
     }
@@ -132,7 +164,6 @@ fun CourseSearchTextField(
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
 
     var value by remember { mutableStateOf("") }
 
@@ -174,6 +205,7 @@ fun CourseSearchTextField(
 fun CoursesBody(
     courses: List<CourseListItem>,
     showingListView: Boolean,
+    userLastKnownLocation: Location,
     modifier: Modifier = Modifier,
 ) {
     if (showingListView) {
@@ -181,7 +213,9 @@ fun CoursesBody(
             courses
         )
     } else {
-        CoursesMap()
+        CoursesMap(
+            userLastKnownLocation = userLastKnownLocation
+        )
     }
 }
 
@@ -224,17 +258,25 @@ fun CourseListItem(
 
 @Composable
 fun CoursesMap(
+    userLastKnownLocation: Location,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
 
+    // Set camera position state to the user last known location
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(
-            LatLng(61.49911, 23.78712),
+            LatLng(userLastKnownLocation.latitude, userLastKnownLocation.longitude),
             12f
         )
     }
 
+    /* TODO */
+    val visibleRegion = cameraPositionState.projection?.visibleRegion
+
+    Log.d("Coursesmap: " , visibleRegion?.nearLeft.toString() + visibleRegion?.farRight)
+
+    // Set maps style, map camera bounds and minimum zoom preference
     val mapProperties by remember {
         mutableStateOf(
             MapProperties(
@@ -251,6 +293,7 @@ fun CoursesMap(
         )
     }
 
+
     val mapUiSettings by remember {
         mutableStateOf(
             MapUiSettings(
@@ -261,6 +304,8 @@ fun CoursesMap(
         )
     }
 
+    val currentPosition = LatLng(userLastKnownLocation.latitude, userLastKnownLocation.longitude)
+
     Box(
         modifier = modifier.fillMaxSize()
     ) {
@@ -268,8 +313,13 @@ fun CoursesMap(
             cameraPositionState = cameraPositionState,
             properties = mapProperties,
             uiSettings = mapUiSettings,
-            modifier = modifier
+            modifier = modifier,
         ) {
+            /*TODO: get a custom marker with direction functionality */
+            Marker(
+                state = MarkerState(currentPosition),
+                contentDescription = "Current location marker"
+            )
         }
     }
 }

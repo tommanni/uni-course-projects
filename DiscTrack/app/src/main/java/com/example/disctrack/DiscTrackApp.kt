@@ -9,6 +9,12 @@ import com.example.disctrack.ui.navigation.DiscTrackNavHost
  * Top level composable that represents screens for the application.
  */
 @Composable
-fun DiscTrackApp(navController: NavHostController = rememberNavController()) {
-    DiscTrackNavHost(navController = navController)
+fun DiscTrackApp(
+    navController: NavHostController = rememberNavController(),
+    hasLocationPermission: Boolean,
+) {
+    DiscTrackNavHost(
+        navController = navController,
+        hasLocationPermission = hasLocationPermission
+    )
 }
