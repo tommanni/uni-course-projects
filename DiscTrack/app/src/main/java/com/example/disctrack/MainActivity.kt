@@ -9,23 +9,25 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.disctrack.data.repository.WorkManagerCourseDataSyncRepository
 import com.example.disctrack.ui.theme.DiscTrackTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(){
 
-    private val viewModel = MainViewModel()
+    private var hasLocationPermission = false
 
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         when {
             permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) -> {
-                viewModel.hasLocationPermission = true
+                hasLocationPermission = true
             }
             permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
-                viewModel.hasLocationPermission = true
+                hasLocationPermission = true
             } else -> {}
         }
     }
@@ -38,8 +40,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DiscTrackTheme {
                 checkPermissions()
-
-                DiscTrackApp(hasLocationPermission = viewModel.hasLocationPermission)
+                DiscTrackApp(hasLocationPermission = hasLocationPermission)
             }
         }
     }
@@ -57,7 +58,7 @@ class MainActivity : ComponentActivity() {
             requestLocationPermission()
         } else {
             // If user has given permissions, set variable in view model to true
-            viewModel.hasLocationPermission = true
+            hasLocationPermission = true
         }
     }
 

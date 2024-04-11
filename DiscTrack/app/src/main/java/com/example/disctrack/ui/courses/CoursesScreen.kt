@@ -1,7 +1,7 @@
 package com.example.disctrack.ui.courses
 
 import android.location.Location
-import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,12 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
@@ -23,50 +24,53 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Shapes
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.disctrack.R
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.ui.navigation.NavigationDestination
-import com.google.android.gms.maps.Projection
+import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.android.gms.maps.model.VisibleRegion
-import com.google.maps.android.compose.AdvancedMarker
+import com.google.maps.android.clustering.ClusterItem
+import com.google.maps.android.clustering.ClusterManager
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.clustering.Clustering
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlin.coroutines.coroutineContext
+import kotlin.coroutines.CoroutineContext
+import kotlin.reflect.KSuspendFunction2
 
 object CoursesDestination: NavigationDestination {
     override val route: String = "courses"
@@ -146,8 +150,10 @@ fun CoursesScreen(
             )
             CoursesBody(
                 courses = coursesUiState.shownCourses,
+                shownCoursesOnMap = coursesUiState.shownCoursesOnMap,
                 showingListView = showingListView,
-                userLastKnownLocation = coursesUiState.userLastKnownLocation
+                userLastKnownLocation = coursesUiState.userLastKnownLocation,
+                getCoursesInMapVisibleRegion = viewModel::getCoursesInMapVisibleRegion
             )
         }
     }
@@ -206,15 +212,20 @@ fun CoursesBody(
     courses: List<CourseListItem>,
     showingListView: Boolean,
     userLastKnownLocation: Location,
+    getCoursesInMapVisibleRegion: (LatLng, LatLng) -> Unit,
+    shownCoursesOnMap: List<CourseListItem>,
     modifier: Modifier = Modifier,
 ) {
     if (showingListView) {
         CourseList(
-            courses
+            courses = courses,
+            getCoursesInMapVisibleRegion = getCoursesInMapVisibleRegion
         )
     } else {
         CoursesMap(
-            userLastKnownLocation = userLastKnownLocation
+            userLastKnownLocation = userLastKnownLocation,
+            getCoursesInMapVisibleRegion = getCoursesInMapVisibleRegion,
+            shownCoursesOnMap = shownCoursesOnMap,
         )
     }
 }
@@ -223,6 +234,7 @@ fun CoursesBody(
 fun CourseList(
     courses: List<CourseListItem>,
     modifier: Modifier = Modifier,
+    getCoursesInMapVisibleRegion: (LatLng, LatLng) -> Unit,
 ) {
     LazyColumn {
         items(items = courses) {course ->
@@ -256,9 +268,12 @@ fun CourseListItem(
     )
 }
 
+@OptIn(MapsComposeExperimentalApi::class)
 @Composable
 fun CoursesMap(
     userLastKnownLocation: Location,
+    getCoursesInMapVisibleRegion: (LatLng, LatLng) -> Unit,
+    shownCoursesOnMap: List<CourseListItem>,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -270,11 +285,19 @@ fun CoursesMap(
             12f
         )
     }
+    // State to hold the visible region
+    val visibleRegionState = remember { mutableStateOf(cameraPositionState.projection?.visibleRegion) }
 
-    /* TODO */
-    val visibleRegion = cameraPositionState.projection?.visibleRegion
-
-    Log.d("Coursesmap: " , visibleRegion?.nearLeft.toString() + visibleRegion?.farRight)
+    // Update visible region state when user interacts with the map
+    LaunchedEffect(cameraPositionState.position) {
+        visibleRegionState.value = cameraPositionState.projection?.visibleRegion
+        if (visibleRegionState.value != null) {
+            getCoursesInMapVisibleRegion(
+                visibleRegionState.value!!.nearLeft,
+                visibleRegionState.value!!.farRight
+            )
+        }
+    }
 
     // Set maps style, map camera bounds and minimum zoom preference
     val mapProperties by remember {
@@ -293,11 +316,11 @@ fun CoursesMap(
         )
     }
 
-
+    // disable location button, zoom controls and rotation gestures from map ui settings
     val mapUiSettings by remember {
         mutableStateOf(
             MapUiSettings(
-                myLocationButtonEnabled = true,
+                myLocationButtonEnabled = false,
                 zoomControlsEnabled = false,
                 rotationGesturesEnabled = false,
             )
@@ -306,20 +329,21 @@ fun CoursesMap(
 
     val currentPosition = LatLng(userLastKnownLocation.latitude, userLastKnownLocation.longitude)
 
-    Box(
-        modifier = modifier.fillMaxSize()
-    ) {
-        GoogleMap(
-            cameraPositionState = cameraPositionState,
-            properties = mapProperties,
-            uiSettings = mapUiSettings,
-            modifier = modifier,
+    GoogleMap(
+        cameraPositionState = cameraPositionState,
+        properties = mapProperties,
+        uiSettings = mapUiSettings,
+        modifier = modifier,
+
         ) {
-            /*TODO: get a custom marker with direction functionality */
-            Marker(
-                state = MarkerState(currentPosition),
-                contentDescription = "Current location marker"
-            )
-        }
+        /*TODO: get a custom marker with direction functionality */
+        Marker(
+            state = MarkerState(currentPosition),
+            contentDescription = "Current location marker"
+        )
+
+        Clustering(
+            items = shownCoursesOnMap
+        )
     }
 }

@@ -18,6 +18,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.disctrack.data.model.CourseListItem
+import com.example.disctrack.data.repository.CourseDbRepository
 import com.example.disctrack.data.repository.CourseRepository
 import com.example.disctrack.ui.utils.calculateDistanceMeters
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -45,6 +46,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CoursesViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
+    private val courseDbRepository: CourseDbRepository,
     private val locationClient: FusedLocationProviderClient,
     private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
@@ -85,17 +87,36 @@ class CoursesViewModel @Inject constructor(
         }
     }
 
+    // Gets courses that are in the visible are of the Maps ui component and adds them to the state
+    fun getCoursesInMapVisibleRegion(nearLeft: LatLng, farRight: LatLng) {
+        viewModelScope.launch {
+            val courses = _coursesUiState.value.courses
+            val shownCoursesOnMap = _coursesUiState.value.shownCoursesOnMap
+
+            val newCoursesToAdd = courses.filter { course ->
+                !course.lat.isNullOrBlank() && !course.lon.isNullOrBlank() &&
+                        course.lat.toDouble() >= nearLeft.latitude &&
+                        course.lon.toDouble() >= nearLeft.longitude &&
+                        course.lat.toDouble() <= farRight.latitude &&
+                        course.lon.toDouble() <= farRight.longitude &&
+                        !shownCoursesOnMap.contains(course)
+            }
+
+            if (newCoursesToAdd.isNotEmpty()) {
+                _coursesUiState.value = _coursesUiState.value.copy(
+                    shownCoursesOnMap = shownCoursesOnMap.toMutableList().apply { addAll(newCoursesToAdd) }
+                )
+            }
+        }
+    }
+
     /* TODO: Fetch courses at app startup and load them to db, get courses from db */
     // Fetches all of the courses and filters the parent courses from them
     private fun getAllParentCourses() {
         viewModelScope.launch {
             try {
-                val coursesResponse = courseRepository.getAllCourses()
-                // Filter out no longer existing courses and non-parent courses
-                val filteredCourses = coursesResponse.courses?.filter { item ->
-                    item.endDate == null && item.parentId == null
-                }
-                _coursesUiState.value = _coursesUiState.value.copy(courses = filteredCourses!!)
+                val courses = courseDbRepository.getAllCourses()
+                _coursesUiState.value = _coursesUiState.value.copy(courses = courses)
                 getNearbySortedCourses()
             } catch (e: IOException) {
                 Log.d("CoursesViewModel", "getAllCourses() failed")
@@ -215,7 +236,6 @@ class CoursesViewModel @Inject constructor(
             }
         }
 
-        Log.d("getLastSvavedLocation(): ", location.latitude.toString())
         return location
     }
 }
@@ -226,7 +246,9 @@ class CoursesViewModel @Inject constructor(
 data class CoursesUiState(
     val courses: List<CourseListItem> = listOf(),
     val shownCourses: List<CourseListItem> = listOf(),
-    val shownCoursesOnMap: List<CourseListItem> = listOf(),
+    val shownCoursesOnMap: MutableList<CourseListItem> = mutableListOf(),
     val nearbyCourses: List<CourseListItem> = listOf(),
-    val userLastKnownLocation: Location
+    val userLastKnownLocation: Location,
+    val smallestNearLeft: LatLng = LatLng(70.037472, 30.487070),
+    val biggestFarRight: LatLng = LatLng(60.023696, 19.870411),
 )

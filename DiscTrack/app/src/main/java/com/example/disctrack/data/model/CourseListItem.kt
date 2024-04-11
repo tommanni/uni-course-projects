@@ -1,5 +1,7 @@
 package com.example.disctrack.data.model
 
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.clustering.ClusterItem
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -44,7 +46,15 @@ data class CourseListItem(
     val lon: String? = null,
     @SerialName("Enddate")
     val endDate: String? = null
-)
+) : ClusterItem {
+    override fun getPosition(): LatLng {
+        return LatLng(lat!!.toDouble(), lon!!.toDouble())
+    }
+    override fun getTitle(): String? = fullName
+
+    override fun getSnippet(): String? = null
+    override fun getZIndex(): Float = 0f
+}
 
 /**
  * Represents the response structure for a disc golf course.

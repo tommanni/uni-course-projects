@@ -86,15 +86,24 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.51.1")
     ksp("com.google.dagger:hilt-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    implementation("androidx.hilt:hilt-work:1.2.0")
 
     // Android Maps Compose
     implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.maps.android:maps-compose-utils:4.3.3")
     // Location service
     implementation ("com.google.android.gms:play-services-location:21.2.0")
 
     // Preferences DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    //Room
+    implementation("androidx.room:room-runtime:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+
+    // WorkManager dependency
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
 
     testImplementation("junit:junit:4.13.2")
