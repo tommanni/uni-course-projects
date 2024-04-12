@@ -1,18 +1,14 @@
 package com.example.disctrack.ui.courses
 
 import android.location.Location
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
@@ -24,40 +20,33 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.disctrack.R
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.ui.navigation.NavigationDestination
-import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.maps.android.clustering.ClusterItem
-import com.google.maps.android.clustering.ClusterManager
+import com.google.maps.android.clustering.algo.NonHierarchicalViewBasedAlgorithm
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
@@ -65,12 +54,9 @@ import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.clustering.Clustering
+import com.google.maps.android.compose.clustering.rememberClusterManager
+import com.google.maps.android.compose.clustering.rememberClusterRenderer
 import com.google.maps.android.compose.rememberCameraPositionState
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlin.coroutines.CoroutineContext
-import kotlin.reflect.KSuspendFunction2
 
 object CoursesDestination: NavigationDestination {
     override val route: String = "courses"
@@ -150,10 +136,8 @@ fun CoursesScreen(
             )
             CoursesBody(
                 courses = coursesUiState.shownCourses,
-                shownCoursesOnMap = coursesUiState.shownCoursesOnMap,
                 showingListView = showingListView,
-                userLastKnownLocation = coursesUiState.userLastKnownLocation,
-                getCoursesInMapVisibleRegion = viewModel::getCoursesInMapVisibleRegion
+                userLastKnownLocation = coursesUiState.userLastKnownLocation
             )
         }
     }
@@ -212,20 +196,16 @@ fun CoursesBody(
     courses: List<CourseListItem>,
     showingListView: Boolean,
     userLastKnownLocation: Location,
-    getCoursesInMapVisibleRegion: (LatLng, LatLng) -> Unit,
-    shownCoursesOnMap: List<CourseListItem>,
     modifier: Modifier = Modifier,
 ) {
     if (showingListView) {
         CourseList(
-            courses = courses,
-            getCoursesInMapVisibleRegion = getCoursesInMapVisibleRegion
+            courses = courses
         )
     } else {
         CoursesMap(
             userLastKnownLocation = userLastKnownLocation,
-            getCoursesInMapVisibleRegion = getCoursesInMapVisibleRegion,
-            shownCoursesOnMap = shownCoursesOnMap,
+            courses = courses,
         )
     }
 }
@@ -233,10 +213,11 @@ fun CoursesBody(
 @Composable
 fun CourseList(
     courses: List<CourseListItem>,
-    modifier: Modifier = Modifier,
-    getCoursesInMapVisibleRegion: (LatLng, LatLng) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    LazyColumn {
+    LazyColumn(
+        modifier = modifier
+    ) {
         items(items = courses) {course ->
             course.fullName?.let {
                 CourseListItem(course)
@@ -268,12 +249,10 @@ fun CourseListItem(
     )
 }
 
-@OptIn(MapsComposeExperimentalApi::class)
 @Composable
 fun CoursesMap(
     userLastKnownLocation: Location,
-    getCoursesInMapVisibleRegion: (LatLng, LatLng) -> Unit,
-    shownCoursesOnMap: List<CourseListItem>,
+    courses: List<CourseListItem>,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -284,19 +263,6 @@ fun CoursesMap(
             LatLng(userLastKnownLocation.latitude, userLastKnownLocation.longitude),
             12f
         )
-    }
-    // State to hold the visible region
-    val visibleRegionState = remember { mutableStateOf(cameraPositionState.projection?.visibleRegion) }
-
-    // Update visible region state when user interacts with the map
-    LaunchedEffect(cameraPositionState.position) {
-        visibleRegionState.value = cameraPositionState.projection?.visibleRegion
-        if (visibleRegionState.value != null) {
-            getCoursesInMapVisibleRegion(
-                visibleRegionState.value!!.nearLeft,
-                visibleRegionState.value!!.farRight
-            )
-        }
     }
 
     // Set maps style, map camera bounds and minimum zoom preference
@@ -333,8 +299,7 @@ fun CoursesMap(
         cameraPositionState = cameraPositionState,
         properties = mapProperties,
         uiSettings = mapUiSettings,
-        modifier = modifier,
-
+        modifier = modifier.fillMaxSize(),
         ) {
         /*TODO: get a custom marker with direction functionality */
         Marker(
@@ -342,8 +307,44 @@ fun CoursesMap(
             contentDescription = "Current location marker"
         )
 
+        // Custom clustering implementation
+        CustomRendererClustering(courses)
+    }
+}
+
+@OptIn(MapsComposeExperimentalApi::class)
+@Composable
+fun CustomRendererClustering(courses: List<CourseListItem>) {
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp
+    val screenWidth = configuration.screenWidthDp
+    val clusterManager = rememberClusterManager<CourseListItem>()
+
+    // Here the clusterManager is being customized with a NonHierarchicalViewBasedAlgorithm
+    // to speed up rendering of items on map
+    clusterManager?.setAlgorithm(
+        NonHierarchicalViewBasedAlgorithm(
+            screenWidth,
+            screenHeight
+        )
+    )
+
+    // Renderer to handle rendering of clustered markers on the map
+    val renderer = rememberClusterRenderer(
+        clusterManager = clusterManager
+    )
+
+    // Ensure that clusterManager's renderer is correctly set
+    SideEffect {
+        if (clusterManager?.renderer != renderer) {
+            clusterManager?.renderer = renderer ?: return@SideEffect
+        }
+    }
+
+    if (clusterManager != null) {
         Clustering(
-            items = shownCoursesOnMap
+            items = courses,
+            clusterManager = clusterManager,
         )
     }
 }

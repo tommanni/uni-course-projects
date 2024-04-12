@@ -87,31 +87,7 @@ class CoursesViewModel @Inject constructor(
         }
     }
 
-    // Gets courses that are in the visible are of the Maps ui component and adds them to the state
-    fun getCoursesInMapVisibleRegion(nearLeft: LatLng, farRight: LatLng) {
-        viewModelScope.launch {
-            val courses = _coursesUiState.value.courses
-            val shownCoursesOnMap = _coursesUiState.value.shownCoursesOnMap
-
-            val newCoursesToAdd = courses.filter { course ->
-                !course.lat.isNullOrBlank() && !course.lon.isNullOrBlank() &&
-                        course.lat.toDouble() >= nearLeft.latitude &&
-                        course.lon.toDouble() >= nearLeft.longitude &&
-                        course.lat.toDouble() <= farRight.latitude &&
-                        course.lon.toDouble() <= farRight.longitude &&
-                        !shownCoursesOnMap.contains(course)
-            }
-
-            if (newCoursesToAdd.isNotEmpty()) {
-                _coursesUiState.value = _coursesUiState.value.copy(
-                    shownCoursesOnMap = shownCoursesOnMap.toMutableList().apply { addAll(newCoursesToAdd) }
-                )
-            }
-        }
-    }
-
-    /* TODO: Fetch courses at app startup and load them to db, get courses from db */
-    // Fetches all of the courses and filters the parent courses from them
+    // Gets all of the courses from DB and calls getNearbyCourses()
     private fun getAllParentCourses() {
         viewModelScope.launch {
             try {
@@ -119,7 +95,7 @@ class CoursesViewModel @Inject constructor(
                 _coursesUiState.value = _coursesUiState.value.copy(courses = courses)
                 getNearbySortedCourses()
             } catch (e: IOException) {
-                Log.d("CoursesViewModel", "getAllCourses() failed")
+                Log.e("CoursesViewModel", "getAllCourses() failed")
             }
         }
     }
@@ -151,7 +127,7 @@ class CoursesViewModel @Inject constructor(
                 }
                 _coursesUiState.value = _coursesUiState.value.copy(shownCourses = nearbyCourses)
             } catch (e: IOException) {
-                Log.d("CoursesViewModel", "getCoursesByNameOrLocation() failed")
+                Log.e("CoursesViewModel", "getCoursesByNameOrLocation() failed")
             }
         }
     }
@@ -162,7 +138,7 @@ class CoursesViewModel @Inject constructor(
             try {
 
             } catch (e: IOException) {
-                Log.d("CoursesViewModel", "getCourseById() failed")
+                Log.e("CoursesViewModel", "getCourseById() failed")
             }
         }
     }
