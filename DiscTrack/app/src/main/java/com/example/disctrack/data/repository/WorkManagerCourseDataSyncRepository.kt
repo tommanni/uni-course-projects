@@ -12,7 +12,9 @@ import androidx.work.WorkManager
 import com.example.disctrack.workers.CourseDataSyncWorker
 import java.util.concurrent.TimeUnit
 
-
+/**
+ * Repository to synchronize api course data with local database data
+ */
 class WorkManagerCourseDataSyncRepository(context: Context) {
 
     private val workManager = WorkManager.getInstance(context)
@@ -24,12 +26,13 @@ class WorkManagerCourseDataSyncRepository(context: Context) {
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
-
+        // Periodic work request, repeat every 7 days
         val syncRequest = PeriodicWorkRequestBuilder<CourseDataSyncWorker>(
             repeatInterval = 7,
             repeatIntervalTimeUnit = TimeUnit.DAYS
         )
             .setConstraints(constraints)
+            // If work fails, retry
             .setBackoffCriteria(
                 BackoffPolicy.EXPONENTIAL,
                 10,

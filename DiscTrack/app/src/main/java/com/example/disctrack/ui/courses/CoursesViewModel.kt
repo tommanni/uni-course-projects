@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Looper
 import android.util.Log
@@ -20,6 +21,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.repository.CourseDbRepository
 import com.example.disctrack.data.repository.CourseRepository
+import com.example.disctrack.data.sensors.AccelerometerSensor
+import com.example.disctrack.data.sensors.MagneticFieldSensor
+import com.example.disctrack.data.sensors.MeasurableSensor
 import com.example.disctrack.ui.utils.calculateDistanceMeters
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -48,7 +52,9 @@ class CoursesViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
     private val courseDbRepository: CourseDbRepository,
     private val locationClient: FusedLocationProviderClient,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val accelerometerSensor: AccelerometerSensor,
+    private val magneticFieldSensor: MagneticFieldSensor
 ) : ViewModel() {
 
     private val _coursesUiState = MutableStateFlow(CoursesUiState(
@@ -113,8 +119,8 @@ class CoursesViewModel @Inject constructor(
     private fun getCoursesByNameOrLocation(value: String) {
         viewModelScope.launch {
             try {
-                // If user hasn't entered at least 3 characters, set nearby courses,
-                val nearbyCourses = if (value.length < 3) {
+                // If user hasn't entered at least 3 characters, set shown courses to nearby courses
+                val shownCourses = if (value.length < 3) {
                     _coursesUiState.value.nearbyCourses
                 } else {
                     // Else fetch courses by name and join with courses by location
@@ -125,7 +131,7 @@ class CoursesViewModel @Inject constructor(
                         course.city?.lowercase()?.contains(value.lowercase()) ?: false
                     }
                 }
-                _coursesUiState.value = _coursesUiState.value.copy(shownCourses = nearbyCourses)
+                _coursesUiState.value = _coursesUiState.value.copy(shownCourses = shownCourses)
             } catch (e: IOException) {
                 Log.e("CoursesViewModel", "getCoursesByNameOrLocation() failed")
             }
@@ -167,17 +173,9 @@ class CoursesViewModel @Inject constructor(
         )
     }
 
-    // Stop location updates
-    fun stopLocationUpdates() {
-        locationClient.removeLocationUpdates(locationCallback)
-        saveLastKnownLocation()
-    }
-
     // Start location updates if user has given location permissions
     @SuppressLint("MissingPermission")
     fun startLocationUpdates(hasPermission: Boolean) {
-        Log.d("StartLocationUpdates: ", hasPermission.toString())
-
         if (hasPermission) {
             locationClient.requestLocationUpdates(
                 LocationRequest.Builder(10000).build(),
@@ -185,6 +183,12 @@ class CoursesViewModel @Inject constructor(
                 Looper.getMainLooper()
             )
         }
+    }
+
+    // Stop location updates
+    fun stopLocationUpdates() {
+        locationClient.removeLocationUpdates(locationCallback)
+        saveLastKnownLocation()
     }
 
     // Save last known user location to DataStore
@@ -222,9 +226,7 @@ class CoursesViewModel @Inject constructor(
 data class CoursesUiState(
     val courses: List<CourseListItem> = listOf(),
     val shownCourses: List<CourseListItem> = listOf(),
-    val shownCoursesOnMap: MutableList<CourseListItem> = mutableListOf(),
     val nearbyCourses: List<CourseListItem> = listOf(),
     val userLastKnownLocation: Location,
-    val smallestNearLeft: LatLng = LatLng(70.037472, 30.487070),
-    val biggestFarRight: LatLng = LatLng(60.023696, 19.870411),
+    val deviceOrientation: Float = 0F
 )

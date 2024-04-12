@@ -1,17 +1,22 @@
 package com.example.disctrack.ui.courses
 
 import android.location.Location
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
@@ -20,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -32,20 +38,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.disctrack.R
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.ui.navigation.NavigationDestination
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MapStyleOptions
+import com.google.maps.android.clustering.ClusterItem
+import com.google.maps.android.clustering.algo.NonHierarchicalDistanceBasedAlgorithm
 import com.google.maps.android.clustering.algo.NonHierarchicalViewBasedAlgorithm
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
@@ -135,7 +149,9 @@ fun CoursesScreen(
                 getCoursesByNameOrLocation = viewModel::searchCoursesByNameOrLocation
             )
             CoursesBody(
-                courses = coursesUiState.shownCourses,
+                courses = coursesUiState.courses,
+                shownCourses = coursesUiState.shownCourses,
+                deviceOrientation = coursesUiState.deviceOrientation,
                 showingListView = showingListView,
                 userLastKnownLocation = coursesUiState.userLastKnownLocation
             )
@@ -194,18 +210,21 @@ fun CourseSearchTextField(
 @Composable
 fun CoursesBody(
     courses: List<CourseListItem>,
+    shownCourses: List<CourseListItem>,
     showingListView: Boolean,
     userLastKnownLocation: Location,
+    deviceOrientation: Float,
     modifier: Modifier = Modifier,
 ) {
     if (showingListView) {
         CourseList(
-            courses = courses
+            courses = shownCourses
         )
     } else {
         CoursesMap(
             userLastKnownLocation = userLastKnownLocation,
             courses = courses,
+            deviceOrientation = deviceOrientation
         )
     }
 }
@@ -253,6 +272,7 @@ fun CourseListItem(
 fun CoursesMap(
     userLastKnownLocation: Location,
     courses: List<CourseListItem>,
+    deviceOrientation: Float,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -274,6 +294,7 @@ fun CoursesMap(
                     R.raw.style_json
                 ),
                 latLngBoundsForCameraTarget = LatLngBounds(
+                    // TODO: Adjust based on zoom level
                     LatLng(60.023696, 19.870411),
                     LatLng(70.037472, 30.487070)
                 ),
@@ -299,12 +320,18 @@ fun CoursesMap(
         cameraPositionState = cameraPositionState,
         properties = mapProperties,
         uiSettings = mapUiSettings,
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize()
         ) {
-        /*TODO: get a custom marker with direction functionality */
+        val currentLocationIcon = BitmapDescriptorFactory.fromResource(
+            R.drawable.current_location_2_64
+        )
+        /*TODO: Implement device orientation to location marker */
         Marker(
             state = MarkerState(currentPosition),
-            contentDescription = "Current location marker"
+            contentDescription = "Current location marker",
+            icon = currentLocationIcon,
+            anchor = Offset(0.5f, 0.5f),
+            rotation = deviceOrientation
         )
 
         // Custom clustering implementation
@@ -320,6 +347,7 @@ fun CustomRendererClustering(courses: List<CourseListItem>) {
     val screenWidth = configuration.screenWidthDp
     val clusterManager = rememberClusterManager<CourseListItem>()
 
+
     // Here the clusterManager is being customized with a NonHierarchicalViewBasedAlgorithm
     // to speed up rendering of items on map
     clusterManager?.setAlgorithm(
@@ -331,6 +359,14 @@ fun CustomRendererClustering(courses: List<CourseListItem>) {
 
     // Renderer to handle rendering of clustered markers on the map
     val renderer = rememberClusterRenderer(
+        clusterContent = null,
+        clusterItemContent = {
+            Icon(
+                imageVector = Icons.Filled.LocationOn,
+                contentDescription = "Course location marker",
+                modifier = Modifier.size(32.dp)
+            )
+        },
         clusterManager = clusterManager
     )
 
@@ -344,7 +380,7 @@ fun CustomRendererClustering(courses: List<CourseListItem>) {
     if (clusterManager != null) {
         Clustering(
             items = courses,
-            clusterManager = clusterManager,
+            clusterManager = clusterManager
         )
     }
 }

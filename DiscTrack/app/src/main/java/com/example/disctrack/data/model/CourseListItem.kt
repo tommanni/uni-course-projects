@@ -52,7 +52,7 @@ data class CourseListItem(
     }
     override fun getTitle(): String? = fullName
 
-    override fun getSnippet(): String? = null
+    override fun getSnippet(): String = "$city, Finland"
     override fun getZIndex(): Float = 0f
 }
 
