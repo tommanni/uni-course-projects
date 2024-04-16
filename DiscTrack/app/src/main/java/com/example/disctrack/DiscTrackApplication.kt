@@ -27,6 +27,7 @@ class DiscTrackApplication : Application(), Configuration.Provider {
         syncRepository.syncCourseData()
     }
 
+    // Configuration object for WorkManager
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)

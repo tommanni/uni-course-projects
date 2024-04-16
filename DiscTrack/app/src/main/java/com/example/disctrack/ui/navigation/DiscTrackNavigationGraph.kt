@@ -12,6 +12,10 @@ import com.example.disctrack.ui.courses.CoursesScreen
 import com.example.disctrack.ui.home.HomeDestination
 import com.example.disctrack.ui.home.HomeScreen
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.getValue
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.disctrack.ui.home.RoundSetupDestination
+import com.example.disctrack.ui.home.RoundSetupScreen
 import com.example.disctrack.ui.statistics.StatisticsDestination
 import com.example.disctrack.ui.statistics.StatisticsScreen
 
@@ -22,9 +26,16 @@ fun DiscTrackNavHost(
     hasLocationPermission: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val backStackEntry by navController.currentBackStackEntryAsState()
+
     Scaffold(
         bottomBar = {
-            DiscTrackBottomAppBar(navController = navController)
+            if (backStackEntry?.destination?.route == HomeDestination.route ||
+                backStackEntry?.destination?.route == CoursesDestination.route ||
+                backStackEntry?.destination?.route == StatisticsDestination.route
+                ) {
+                DiscTrackBottomAppBar(navController = navController)
+            }
         }
     ) {
         NavHost(
@@ -33,7 +44,9 @@ fun DiscTrackNavHost(
             modifier = modifier.padding(it)
         ) {
             composable(route = HomeDestination.route) {
-                HomeScreen()
+                HomeScreen(
+                    navController = navController
+                )
             }
             composable(route = CoursesDestination.route) {
                 CoursesScreen(
@@ -42,6 +55,11 @@ fun DiscTrackNavHost(
             }
             composable(route = StatisticsDestination.route) {
                 StatisticsScreen()
+            }
+            composable(route = RoundSetupDestination.route) {
+                RoundSetupScreen(
+                    navController = navController
+                )
             }
         }
     }

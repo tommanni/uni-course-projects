@@ -7,6 +7,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.disctrack.data.database.entities.CourseItem
+import com.example.disctrack.data.database.entities.PlayedHole
+import com.example.disctrack.data.database.entities.Round
 
 @Dao
 interface CourseDao {
@@ -24,4 +26,10 @@ interface CourseDao {
 
     @Query("DELETE from courses")
     suspend fun deleteAllCourses()
+
+    @Query("SELECT * FROM rounds")
+    suspend fun getAllRounds(): MutableList<Round>
+
+    @Query("SELECT * FROM played_holes WHERE courseId = :courseId")
+    fun getRoundPlayedHoles(courseId: String): MutableList<PlayedHole>
 }

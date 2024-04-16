@@ -14,13 +14,14 @@ abstract class AndroidSensor(
     private val sensorFeature: String,
     sensorType: Int
     ): MeasurableSensor(sensorType), SensorEventListener {
-
+    // Check if device has sensor
     override val doesSensorExist: Boolean
         get() = context.packageManager.hasSystemFeature(sensorFeature)
 
     private lateinit var sensorManager: SensorManager
     private var sensor: Sensor? = null
 
+    // Start listening for sensor data
     override fun startListening() {
         if (!doesSensorExist) {
             return
@@ -34,6 +35,7 @@ abstract class AndroidSensor(
         }
     }
 
+    // Stop listening for sensor data
     override fun stopListening() {
         if (!doesSensorExist || !::sensorManager.isInitialized) {
             return
@@ -41,6 +43,7 @@ abstract class AndroidSensor(
         sensorManager.unregisterListener(this)
     }
 
+    // If sensor exists, invoke a callback function with the sensor event values
     override fun onSensorChanged(event: SensorEvent?) {
         if (!doesSensorExist) {
             return
@@ -50,5 +53,6 @@ abstract class AndroidSensor(
         }
     }
 
+    // If sensor accuracy changes, do nothing
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 }

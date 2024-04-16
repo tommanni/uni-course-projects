@@ -6,11 +6,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.disctrack.data.database.dao.CourseDao
 import com.example.disctrack.data.database.entities.CourseItem
+import com.example.disctrack.data.database.entities.PlayedHole
+import com.example.disctrack.data.database.entities.Round
 
 /**
  * Database class with a singleton Instance object.
  */
-@Database(entities = [CourseItem::class], version = 1, exportSchema = false)
+@Database(entities = [CourseItem::class, Round::class, PlayedHole::class], version = 2, exportSchema = false)
 abstract class CourseItemDatabase: RoomDatabase() {
     abstract fun courseDao(): CourseDao
 

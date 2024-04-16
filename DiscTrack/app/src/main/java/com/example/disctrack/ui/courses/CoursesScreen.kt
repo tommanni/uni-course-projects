@@ -1,10 +1,14 @@
 package com.example.disctrack.ui.courses
 
+import android.content.Context
 import android.location.Location
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -51,8 +58,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.disctrack.R
+import com.example.disctrack.data.model.Course
 import com.example.disctrack.data.model.CourseListItem
+import com.example.disctrack.data.model.CourseResponse
 import com.example.disctrack.ui.navigation.NavigationDestination
+import com.google.android.gms.maps.CameraUpdate
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -66,11 +77,16 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerInfoWindow
+import com.google.maps.android.compose.MarkerInfoWindowContent
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.clustering.Clustering
 import com.google.maps.android.compose.clustering.rememberClusterManager
 import com.google.maps.android.compose.clustering.rememberClusterRenderer
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberMarkerState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 object CoursesDestination: NavigationDestination {
     override val route: String = "courses"
@@ -153,7 +169,9 @@ fun CoursesScreen(
                 shownCourses = coursesUiState.shownCourses,
                 deviceOrientation = coursesUiState.deviceOrientation,
                 showingListView = showingListView,
-                userLastKnownLocation = coursesUiState.userLastKnownLocation
+                userLastKnownLocation = coursesUiState.userLastKnownLocation,
+                selectedCourseResponse = coursesUiState.selectedCourseResponse,
+                getCourseById = viewModel::getCourseById,
             )
         }
     }
@@ -202,6 +220,9 @@ fun CourseSearchTextField(
             .onFocusChanged { focusState ->
                 if (focusState.isFocused && !showingListView) {
                     setListView()
+                } else {
+                    value = ""
+                    getCoursesByNameOrLocation(value)
                 }
             }
     )
@@ -214,6 +235,8 @@ fun CoursesBody(
     showingListView: Boolean,
     userLastKnownLocation: Location,
     deviceOrientation: Float,
+    selectedCourseResponse: CourseResponse,
+    getCourseById: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (showingListView) {
@@ -224,6 +247,8 @@ fun CoursesBody(
         CoursesMap(
             userLastKnownLocation = userLastKnownLocation,
             courses = courses,
+            selectedCourseResponse = selectedCourseResponse,
+            getCourseById = getCourseById,
             deviceOrientation = deviceOrientation
         )
     }
@@ -273,6 +298,8 @@ fun CoursesMap(
     userLastKnownLocation: Location,
     courses: List<CourseListItem>,
     deviceOrientation: Float,
+    selectedCourseResponse: CourseResponse,
+    getCourseById: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -284,6 +311,9 @@ fun CoursesMap(
             12f
         )
     }
+
+    // MutableState to hold the selected marker's position
+    val selectedMarkerPosition = remember { mutableStateOf<LatLng?>(null) }
 
     // Set maps style, map camera bounds and minimum zoom preference
     val mapProperties by remember {
@@ -331,21 +361,47 @@ fun CoursesMap(
             contentDescription = "Current location marker",
             icon = currentLocationIcon,
             anchor = Offset(0.5f, 0.5f),
-            rotation = deviceOrientation
+            rotation = deviceOrientation,
         )
 
         // Custom clustering implementation
-        CustomRendererClustering(courses)
+        CustomRendererClustering(
+            courses = courses,
+            selectedCourseResponse = selectedCourseResponse,
+            getCourseById = getCourseById,
+            onMarkerClick = { position ->
+                selectedMarkerPosition.value = position
+            }
+        )
+
+        // Move the camera to the selected marker's position when it's not null
+        LaunchedEffect(selectedMarkerPosition.value) {
+            selectedMarkerPosition.value?.let { markerPosition ->
+                val cameraPosition = CameraPosition.fromLatLngZoom(
+                    markerPosition,
+                    cameraPositionState.position.zoom
+                )
+                val cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition)
+                cameraPositionState.animate(cameraUpdate, 500)
+                selectedMarkerPosition.value = null // Reset selected marker position
+            }
+        }
     }
 }
 
 @OptIn(MapsComposeExperimentalApi::class)
 @Composable
-fun CustomRendererClustering(courses: List<CourseListItem>) {
+fun CustomRendererClustering(
+    courses: List<CourseListItem>,
+    selectedCourseResponse: CourseResponse,
+    getCourseById: (String) -> Unit,
+    onMarkerClick: (LatLng) -> Unit
+) {
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp
     val screenWidth = configuration.screenWidthDp
     val clusterManager = rememberClusterManager<CourseListItem>()
+    val markerInfoWindowState = rememberMarkerState()
 
 
     // Here the clusterManager is being customized with a NonHierarchicalViewBasedAlgorithm
@@ -357,16 +413,29 @@ fun CustomRendererClustering(courses: List<CourseListItem>) {
         )
     )
 
+    // Course info window, shown on marker click
+    MarkerInfoWindow(
+        state = markerInfoWindowState
+    ) {
+        Card {
+            Column( Modifier.padding(dimensionResource(R.dimen.padding_medium))) {
+                Text(
+                    selectedCourseResponse.course.fullName ?: "Default"
+                    //selectedCourse?.fullName ?: "Default"
+                )
+                Row {
+                    Icon(Icons.Filled.LocationOn, "Course location icon")
+                    Text("${selectedCourseResponse.course.city}, Finland")
+                    selectedCourseResponse.baskets?.let { Text(" \u00B7 ${it.size} holes") }
+                }
+            }
+        }
+    }
+
     // Renderer to handle rendering of clustered markers on the map
     val renderer = rememberClusterRenderer(
         clusterContent = null,
-        clusterItemContent = {
-            Icon(
-                imageVector = Icons.Filled.LocationOn,
-                contentDescription = "Course location marker",
-                modifier = Modifier.size(32.dp)
-            )
-        },
+        clusterItemContent = null,
         clusterManager = clusterManager
     )
 
@@ -377,6 +446,23 @@ fun CustomRendererClustering(courses: List<CourseListItem>) {
         }
     }
 
+    // Register a clusterItemClickListener to show course info on marker click
+    LaunchedEffect(clusterManager?.renderer) {
+        clusterManager ?: return@LaunchedEffect
+        clusterManager.setOnClusterItemClickListener { item ->
+            item.id?.let { getCourseById(it) }
+            markerInfoWindowState.position = item.position
+            onMarkerClick(item.position)
+            true
+        }
+    }
+
+    // When selectedCourseResponse changes, show infowindow
+    LaunchedEffect(selectedCourseResponse) {
+        markerInfoWindowState.showInfoWindow()
+    }
+
+    // Show clustering on map
     if (clusterManager != null) {
         Clustering(
             items = courses,

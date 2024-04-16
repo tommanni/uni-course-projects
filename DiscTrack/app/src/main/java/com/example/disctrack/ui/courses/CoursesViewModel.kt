@@ -18,7 +18,10 @@ import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.disctrack.data.database.entities.toCourseItem
+import com.example.disctrack.data.model.Course
 import com.example.disctrack.data.model.CourseListItem
+import com.example.disctrack.data.model.CourseResponse
 import com.example.disctrack.data.repository.CourseDbRepository
 import com.example.disctrack.data.repository.CourseRepository
 import com.example.disctrack.data.sensors.AccelerometerSensor
@@ -36,9 +39,11 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import java.io.IOException
 import javax.inject.Inject
@@ -60,7 +65,7 @@ class CoursesViewModel @Inject constructor(
     private val _coursesUiState = MutableStateFlow(CoursesUiState(
         userLastKnownLocation = getLastSavedLocation())
     )
-    val coursesUiState: StateFlow<CoursesUiState> = _coursesUiState
+    val coursesUiState: StateFlow<CoursesUiState> = _coursesUiState.asStateFlow()
 
     // Flow to handle user input for searching courses
     private val searchInputFlow = MutableSharedFlow<String>()
@@ -81,9 +86,9 @@ class CoursesViewModel @Inject constructor(
         _coursesUiState.value = _coursesUiState.value.copy(
             userLastKnownLocation = getLastSavedLocation()
         )
-        // Collect values from input flow, debounce them for 300 milliseconds using the debounce
-        // operator, and call the getCoursesByNameOrLocation function with the debounced input value.
-        // This reduces the amount of api calls made.
+        // Collect values from input flow, debounce them for 300 milliseconds and call the
+        // getCoursesByNameOrLocation function with the debounced input value. Because of debounce,
+        // courses are not fetched on every character typed
         viewModelScope.launch {
             searchInputFlow
                 .debounce(300)
@@ -142,7 +147,8 @@ class CoursesViewModel @Inject constructor(
     fun getCourseById(id: String) {
         viewModelScope.launch {
             try {
-
+                val response = courseRepository.getCourseById(id)
+                _coursesUiState.value = _coursesUiState.value.copy(selectedCourseResponse = response)
             } catch (e: IOException) {
                 Log.e("CoursesViewModel", "getCourseById() failed")
             }
@@ -178,7 +184,7 @@ class CoursesViewModel @Inject constructor(
     fun startLocationUpdates(hasPermission: Boolean) {
         if (hasPermission) {
             locationClient.requestLocationUpdates(
-                LocationRequest.Builder(10000).build(),
+                LocationRequest.Builder(3000).build(),
                 locationCallback,
                 Looper.getMainLooper()
             )
@@ -227,6 +233,7 @@ data class CoursesUiState(
     val courses: List<CourseListItem> = listOf(),
     val shownCourses: List<CourseListItem> = listOf(),
     val nearbyCourses: List<CourseListItem> = listOf(),
+    val selectedCourseResponse: CourseResponse = CourseResponse(Course(), listOf(), listOf()),
     val userLastKnownLocation: Location,
     val deviceOrientation: Float = 0F
 )

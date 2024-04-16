@@ -5,6 +5,9 @@ import com.example.disctrack.data.network.CourseApiService
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.model.CourseResponse
 import com.example.disctrack.data.model.CoursesResponse
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import retrofit2.http.GET
 import retrofit2.http.Query
 import java.util.Locale

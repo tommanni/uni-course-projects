@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity(){
 
     private var hasLocationPermission = false
 
+    // Launcher to ask for permissions
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -45,7 +46,7 @@ class MainActivity : ComponentActivity(){
         }
     }
 
-    // Check if user has granted permissions, if not ask for them
+    // Check if user has granted permissions, if not, ask for them
     private fun checkPermissions() {
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -66,6 +67,7 @@ class MainActivity : ComponentActivity(){
     private fun requestLocationPermission() {
         locationPermissionLauncher.launch(arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION))
+            Manifest.permission.ACCESS_COARSE_LOCATION)
+        )
     }
 }

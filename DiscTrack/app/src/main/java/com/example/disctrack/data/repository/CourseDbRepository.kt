@@ -4,6 +4,7 @@ import com.example.disctrack.data.database.dao.CourseDao
 import com.example.disctrack.data.database.entities.CourseItem
 import com.example.disctrack.data.database.entities.toCourseListItem
 import com.example.disctrack.data.model.CourseListItem
+import com.example.disctrack.data.model.PlayedRound
 
 /**
  * Repository that provides insert, update, delete, and retrieve of [CourseItem] from a given data source.
@@ -24,4 +25,10 @@ class CourseDbRepository(private val courseDao: CourseDao) {
 
     suspend fun deleteAllCourses() = courseDao.deleteAllCourses()
 
+    suspend fun getAllRounds(): MutableList<PlayedRound> {
+        val rounds = courseDao.getAllRounds()
+        return  rounds.map {
+            round -> PlayedRound(round, courseDao.getRoundPlayedHoles(round.courseId))
+        }.toMutableList()
+    }
 }

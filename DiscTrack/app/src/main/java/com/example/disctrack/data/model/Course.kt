@@ -42,9 +42,9 @@ data class Course(
     val city: String? = null,
     @SerialName("Location")
     val location: String? = null,
-    @SerialName("X")
+    @SerialName("Lat")
     val lat: String? = null,
-    @SerialName("Y")
+    @SerialName("Lng")
     val lon: String? = null,
     @SerialName("Enddate")
     val endDate: String? = null,
@@ -96,9 +96,12 @@ data class Basket(
  * Represents the response structure for a disc golf course.
  * @property course The course data
  * @property baskets The list of baskets on the course
+ * @property errors The list of errors occurred during API request
  */
 @Serializable
 data class CourseResponse(
     val course: Course,
-    val baskets: List<Basket>
+    val baskets: List<Basket>? = null,
+    @SerialName(value = "Errors")
+    val errors: List<String>
 )

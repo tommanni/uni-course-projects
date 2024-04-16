@@ -27,6 +27,8 @@ class CourseDataSyncWorker @AssistedInject constructor(
     @Assisted ctx: Context,
     @Assisted params: WorkerParameters
 ): CoroutineWorker(ctx, params) {
+
+    // Define what work worker does
     override suspend fun doWork(): Result {
         return withContext(Dispatchers.IO) {
             return@withContext try {
@@ -36,7 +38,8 @@ class CourseDataSyncWorker @AssistedInject constructor(
                 // Filter out no longer existing courses and non-parent courses and courses
                 // that have empty fields
                 val filteredCourses = coursesResponse.courses?.filter { item ->
-                    item.endDate == null
+                    (item.type == "1" /*|| (item.type == "2" && item.parentId == null)*/)
+                            && item.endDate == null
                             && item.parentId == null
                             && item.lon != ""
                             && item.lat != ""
