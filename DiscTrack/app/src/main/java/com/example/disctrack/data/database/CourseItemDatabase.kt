@@ -12,7 +12,7 @@ import com.example.disctrack.data.database.entities.Round
 /**
  * Database class with a singleton Instance object.
  */
-@Database(entities = [CourseItem::class, Round::class, PlayedHole::class], version = 2, exportSchema = false)
+@Database(entities = [CourseItem::class, Round::class, PlayedHole::class], version = 3, exportSchema = false)
 abstract class CourseItemDatabase: RoomDatabase() {
     abstract fun courseDao(): CourseDao
 

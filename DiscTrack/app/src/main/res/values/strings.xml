@@ -6,6 +6,8 @@
     <string name="courses_title">Courses</string>
     <string name="statistics_title">Statistics</string>
     <string name="round_setup_title">Round setup</string>
+    <string name="custom_round_create_title">Create custom scorecard</string>
+    <string name="round_track_title">Track round</string>
     <string name="switch_view_list">List</string>
     <string name="switch_view_map">Map</string>
     <string name="start_a_round_button">Start a round</string>

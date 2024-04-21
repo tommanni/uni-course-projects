@@ -13,9 +13,15 @@ import com.example.disctrack.ui.home.HomeDestination
 import com.example.disctrack.ui.home.HomeScreen
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
+import androidx.navigation.NavType
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.navArgument
 import com.example.disctrack.ui.home.RoundSetupDestination
 import com.example.disctrack.ui.home.RoundSetupScreen
+import com.example.disctrack.ui.round.CreateCustomRoundDestination
+import com.example.disctrack.ui.round.CreateCustomRoundScreen
+import com.example.disctrack.ui.round.RoundTrackDestination
+import com.example.disctrack.ui.round.RoundTrackScreen
 import com.example.disctrack.ui.statistics.StatisticsDestination
 import com.example.disctrack.ui.statistics.StatisticsScreen
 
@@ -30,6 +36,7 @@ fun DiscTrackNavHost(
 
     Scaffold(
         bottomBar = {
+            // Show bottom bar only if current destination is one of the root destinations
             if (backStackEntry?.destination?.route == HomeDestination.route ||
                 backStackEntry?.destination?.route == CoursesDestination.route ||
                 backStackEntry?.destination?.route == StatisticsDestination.route
@@ -58,7 +65,25 @@ fun DiscTrackNavHost(
             }
             composable(route = RoundSetupDestination.route) {
                 RoundSetupScreen(
+                    navController = navController,
+                    hasLocationPermission = hasLocationPermission
+                )
+            }
+            composable(route = CreateCustomRoundDestination.route) {
+                CreateCustomRoundScreen(
                     navController = navController
+                )
+            }
+            composable(
+                route = RoundTrackDestination.route,
+                arguments = listOf(navArgument("courseId") {
+                    type = NavType.StringType
+                })
+            ) { backStackEntry ->
+                RoundTrackScreen(
+                    navController = navController,
+                    backStackEntry.arguments?.getString("courseId"),
+                    backStackEntry.arguments?.getString("courseName")
                 )
             }
         }

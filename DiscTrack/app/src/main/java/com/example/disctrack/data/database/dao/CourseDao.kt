@@ -32,4 +32,7 @@ interface CourseDao {
 
     @Query("SELECT * FROM played_holes WHERE courseId = :courseId")
     fun getRoundPlayedHoles(courseId: String): MutableList<PlayedHole>
+
+    @Query("SELECT courseId FROM rounds ORDER BY date")
+    suspend fun getPlayedCourseIdList(): List<String>
 }

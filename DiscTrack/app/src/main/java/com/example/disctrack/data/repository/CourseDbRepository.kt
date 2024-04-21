@@ -31,4 +31,6 @@ class CourseDbRepository(private val courseDao: CourseDao) {
             round -> PlayedRound(round, courseDao.getRoundPlayedHoles(round.courseId))
         }.toMutableList()
     }
+
+    suspend fun getPlayedCourseIdList(): List<String> = courseDao.getPlayedCourseIdList()
 }

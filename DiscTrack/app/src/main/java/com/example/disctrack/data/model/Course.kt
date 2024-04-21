@@ -103,5 +103,5 @@ data class CourseResponse(
     val course: Course,
     val baskets: List<Basket>? = null,
     @SerialName(value = "Errors")
-    val errors: List<String>
+    val errors: List<String>? = null
 )

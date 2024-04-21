@@ -10,11 +10,10 @@ import com.example.disctrack.ui.navigation.DiscTrackNavHost
  */
 @Composable
 fun DiscTrackApp(
-    navController: NavHostController = rememberNavController(),
-    hasLocationPermission: Boolean,
+    hasLocationPermission: Boolean
 ) {
     DiscTrackNavHost(
-        navController = navController,
+        navController = rememberNavController(),
         hasLocationPermission = hasLocationPermission
     )
 }

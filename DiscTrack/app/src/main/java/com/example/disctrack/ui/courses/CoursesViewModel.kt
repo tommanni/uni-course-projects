@@ -65,7 +65,7 @@ class CoursesViewModel @Inject constructor(
     private val _coursesUiState = MutableStateFlow(CoursesUiState(
         userLastKnownLocation = getLastSavedLocation())
     )
-    val coursesUiState: StateFlow<CoursesUiState> = _coursesUiState.asStateFlow()
+    val coursesUiState: StateFlow<CoursesUiState> = _coursesUiState
 
     // Flow to handle user input for searching courses
     private val searchInputFlow = MutableSharedFlow<String>()
@@ -105,6 +105,7 @@ class CoursesViewModel @Inject constructor(
                 val courses = courseDbRepository.getAllCourses()
                 _coursesUiState.value = _coursesUiState.value.copy(courses = courses)
                 getNearbySortedCourses()
+                getRecentCourses()
             } catch (e: IOException) {
                 Log.e("CoursesViewModel", "getAllCourses() failed")
             }
@@ -179,6 +180,17 @@ class CoursesViewModel @Inject constructor(
         )
     }
 
+    // Gets recently played courses
+    private fun getRecentCourses() {
+        viewModelScope.launch {
+            val courseIdList = courseDbRepository.getPlayedCourseIdList()
+            val recentCourses = _coursesUiState.value.courses.filter { course ->
+                course.id in courseIdList
+            }
+            _coursesUiState.value = _coursesUiState.value.copy(recentCourses = recentCourses)
+        }
+    }
+
     // Start location updates if user has given location permissions
     @SuppressLint("MissingPermission")
     fun startLocationUpdates(hasPermission: Boolean) {
@@ -224,6 +236,18 @@ class CoursesViewModel @Inject constructor(
 
         return location
     }
+
+    fun setNearbyCourses() {
+        _coursesUiState.value = _coursesUiState.value.copy(
+            shownCourses = _coursesUiState.value.nearbyCourses
+        )
+    }
+
+    fun setRecentCourses() {
+        _coursesUiState.value = _coursesUiState.value.copy(
+            shownCourses = _coursesUiState.value.recentCourses
+        )
+    }
 }
 
 /**
@@ -233,6 +257,7 @@ data class CoursesUiState(
     val courses: List<CourseListItem> = listOf(),
     val shownCourses: List<CourseListItem> = listOf(),
     val nearbyCourses: List<CourseListItem> = listOf(),
+    val recentCourses: List<CourseListItem> = listOf(),
     val selectedCourseResponse: CourseResponse = CourseResponse(Course(), listOf(), listOf()),
     val userLastKnownLocation: Location,
     val deviceOrientation: Float = 0F

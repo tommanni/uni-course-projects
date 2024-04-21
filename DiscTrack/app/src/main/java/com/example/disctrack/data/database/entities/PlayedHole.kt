@@ -9,7 +9,7 @@ data class PlayedHole(
     val id: Int = 0,
     val courseId: String,
     val holeNumber: String,
-    val par: String,
+    val par: Int,
     val throws: Int,
     val length: String,
 )

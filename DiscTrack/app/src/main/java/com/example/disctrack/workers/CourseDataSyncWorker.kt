@@ -38,8 +38,7 @@ class CourseDataSyncWorker @AssistedInject constructor(
                 // Filter out no longer existing courses and non-parent courses and courses
                 // that have empty fields
                 val filteredCourses = coursesResponse.courses?.filter { item ->
-                    (item.type == "1" /*|| (item.type == "2" && item.parentId == null)*/)
-                            && item.endDate == null
+                            item.endDate == null
                             && item.parentId == null
                             && item.lon != ""
                             && item.lat != ""

@@ -27,12 +27,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.disctrack.ui.courses.CoursesDestination
 import com.example.disctrack.ui.home.HomeDestination
 import com.example.disctrack.ui.statistics.StatisticsDestination
 
 /**
- * Bottom navigation bar which is the same for every screen
+ * Bottom navigation bar
  */
 @Composable
 fun DiscTrackBottomAppBar(
@@ -60,24 +63,40 @@ fun DiscTrackBottomAppBar(
             unselectedIcon = Icons.Outlined.BarChart
         )
     )
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
     // Current selected navigation item
-    var selectedItemIndex by rememberSaveable {
-        mutableIntStateOf(0)
-    }
+    val currentDestination = navBackStackEntry?.destination
+
     // Bottom navigation bar to navigate between screens
     NavigationBar {
         items.forEachIndexed { index, item ->
+            // Tracks if current navigation item is selected
+            val selected = currentDestination?.hierarchy?.any {
+                it.route == item.navigationDestination
+            } == true
             NavigationBarItem(
-                selected = selectedItemIndex == index,
+                selected = selected,
                 onClick = {
-                    selectedItemIndex = index
-                    navController.navigate(item.navigationDestination)
+                    navController.navigate(item.navigationDestination) {
+                        // Pop up to the start destination of the graph to
+                        // avoid building up a large stack of destinations
+                        // on the back stack as users select items
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        // Avoid multiple copies of the same destination when
+                        // reselecting the same item
+                        launchSingleTop = true
+                        // Restore state when reselecting a previously selected item
+                        restoreState = true
+                    }
                           },
                 label = {
                     Text(
                         text = item.title,
                         // Highlight the selected navigation item icon
-                        color = if (index == selectedItemIndex) {
+                        color = if (selected) {
                             Color.Green
                         } else {
                             Color.White
@@ -87,13 +106,13 @@ fun DiscTrackBottomAppBar(
                 icon = {
                     Icon(
                         // Filled icon for selected item, unfilled for unselected
-                        imageVector = if (selectedItemIndex == index)
+                        imageVector = if (selected)
                             item.selectedIcon
                         else
                             item.unselectedIcon,
                         contentDescription = "Home",
                         // Highlight the selected navigation item label
-                        tint = if (index == selectedItemIndex) {
+                        tint = if (selected) {
                             Color.Green
                         } else {
                             Color.LightGray

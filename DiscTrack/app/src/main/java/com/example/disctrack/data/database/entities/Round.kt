@@ -12,4 +12,5 @@ data class Round (
     val courseName: String,
     val courseLocation: String,
     val date: String,
+    val rating: Int = 0
 )

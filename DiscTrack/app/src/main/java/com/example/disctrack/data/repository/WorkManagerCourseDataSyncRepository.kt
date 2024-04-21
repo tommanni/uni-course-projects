@@ -41,7 +41,7 @@ class WorkManagerCourseDataSyncRepository(context: Context) {
 
         // Ensure that only one instance of synchronization task is scheduled at a time
         workManager.enqueueUniquePeriodicWork(
-            "courseDataSync",
+            "dataSync",
             ExistingPeriodicWorkPolicy.KEEP,
             syncRequest
         )
