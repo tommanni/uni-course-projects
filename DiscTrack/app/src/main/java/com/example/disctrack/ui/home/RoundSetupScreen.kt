@@ -83,7 +83,7 @@ fun RoundSetupScreen(
                     when (button) {
                         "Nearby" -> {
                             showingCourses = true
-                            viewModel.startLocationUpdates(hasLocationPermission)
+                            viewModel.startLocationUpdates()
                             viewModel.setNearbyCourses()
                         }
                         "Recent" -> {

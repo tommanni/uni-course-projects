@@ -98,10 +98,9 @@ object CoursesDestination: NavigationDestination {
 fun DiscTrackTopAppBar(
     title: String,
     setShowingListView: () -> Unit,
+    startOrientationUpdates: () -> Unit,
+    stopOrientationUpdates: () -> Unit,
     showingListView: Boolean,
-    startLocationUpdates: (Boolean) -> Unit,
-    stopLocationUpdates: () -> Unit,
-    hasLocationPermission: Boolean,
     modifier: Modifier = Modifier,
 ) {
     CenterAlignedTopAppBar(
@@ -109,13 +108,14 @@ fun DiscTrackTopAppBar(
         actions = {
             IconButton(
                 onClick = {
-                    setShowingListView()
-                    // If user is viewing map, start location updates else stop
-                    if (!showingListView) {
-                        stopLocationUpdates()
+                    if (showingListView) {
+                        Log.d("listview", "start")
+                        startOrientationUpdates()
                     } else {
-                        startLocationUpdates(hasLocationPermission)
+                        Log.d("listview", "stop")
+                        stopOrientationUpdates()
                     }
+                    setShowingListView()
                           },
                 modifier = modifier
                     .padding(end = dimensionResource(id = R.dimen.padding_small))
@@ -147,10 +147,9 @@ fun CoursesScreen(
             DiscTrackTopAppBar(
                 title = "Courses",
                 setShowingListView = { showingListView = !showingListView },
-                showingListView = showingListView,
-                startLocationUpdates = viewModel::startLocationUpdates,
-                stopLocationUpdates = viewModel::stopLocationUpdates,
-                hasLocationPermission = hasLocationPermission
+                startOrientationUpdates = viewModel::startOrientationUpdates,
+                stopOrientationUpdates = viewModel::stopOrientationUpdates,
+                showingListView = showingListView
             )
         }
     ) { paddingValues ->

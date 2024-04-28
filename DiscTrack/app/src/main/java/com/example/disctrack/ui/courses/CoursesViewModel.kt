@@ -1,24 +1,16 @@
 package com.example.disctrack.ui.courses
 
-import android.Manifest
-import android.annotation.SuppressLint
-import android.content.Context
-import android.content.pm.PackageManager
-import android.hardware.SensorManager
 import android.location.Location
-import android.os.Looper
 import android.util.Log
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.disctrack.data.database.entities.toCourseItem
+import com.example.disctrack.data.manager.LocationManager
+import com.example.disctrack.data.manager.OrientationSensorManager
 import com.example.disctrack.data.model.Course
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.model.CourseResponse
@@ -26,27 +18,23 @@ import com.example.disctrack.data.repository.CourseDbRepository
 import com.example.disctrack.data.repository.CourseRepository
 import com.example.disctrack.data.sensors.AccelerometerSensor
 import com.example.disctrack.data.sensors.MagneticFieldSensor
-import com.example.disctrack.data.sensors.MeasurableSensor
 import com.example.disctrack.ui.utils.calculateDistanceMeters
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.maps.model.LatLng
-import dagger.hilt.android.internal.Contexts.getApplication
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.job
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import java.io.IOException
 import javax.inject.Inject
+import kotlin.math.abs
 
 /**
  * CoursesViewModel for uiState/logic for CoursesScreen
@@ -56,11 +44,15 @@ import javax.inject.Inject
 class CoursesViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
     private val courseDbRepository: CourseDbRepository,
-    private val locationClient: FusedLocationProviderClient,
+    private val locationManager: LocationManager,
     private val dataStore: DataStore<Preferences>,
-    private val accelerometerSensor: AccelerometerSensor,
-    private val magneticFieldSensor: MagneticFieldSensor
+    private val orientationSensorManager: OrientationSensorManager
 ) : ViewModel() {
+
+    // Live location updates from location manager
+    private val locationLiveData: LiveData<Location> = locationManager.locationLiveData
+    // Live azimuth device orientation updates from orientation sensor manager
+    private val azimuthLiveData: StateFlow<Float> = orientationSensorManager.azimuthLiveData
 
     private val _coursesUiState = MutableStateFlow(CoursesUiState(
         userLastKnownLocation = getLastSavedLocation())
@@ -70,22 +62,11 @@ class CoursesViewModel @Inject constructor(
     // Flow to handle user input for searching courses
     private val searchInputFlow = MutableSharedFlow<String>()
 
-    // Define a location callback object to handle location updates.
-    private val locationCallback = object : LocationCallback() {
-        override fun onLocationResult(locationResult: LocationResult) {
-            // Extract the last known location from the location result
-            locationResult.lastLocation?.let {
-                _coursesUiState.value = _coursesUiState.value.copy(userLastKnownLocation = it)
-            }
-        }
-    }
-
     init {
+        startLocationUpdates()
+
         getAllParentCourses()
 
-        _coursesUiState.value = _coursesUiState.value.copy(
-            userLastKnownLocation = getLastSavedLocation()
-        )
         // Collect values from input flow, debounce them for 300 milliseconds and call the
         // getCoursesByNameOrLocation function with the debounced input value. Because of debounce,
         // courses are not fetched on every character typed
@@ -96,6 +77,12 @@ class CoursesViewModel @Inject constructor(
                     getCoursesByNameOrLocation(value)
                 }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopOrientationUpdates()
+        stopLocationUpdates()
     }
 
     // Gets all of the courses from DB and calls getNearbyCourses()
@@ -111,8 +98,6 @@ class CoursesViewModel @Inject constructor(
             }
         }
     }
-
-    /*TODO: if course is type 2, no layuts -> straight to round setup, type 1 -> select layout*/
 
     // Emits user entered values to the searchInputFlow
     fun searchCoursesByNameOrLocation(value: String) {
@@ -191,21 +176,56 @@ class CoursesViewModel @Inject constructor(
         }
     }
 
-    // Start location updates if user has given location permissions
-    @SuppressLint("MissingPermission")
-    fun startLocationUpdates(hasPermission: Boolean) {
-        if (hasPermission) {
-            locationClient.requestLocationUpdates(
-                LocationRequest.Builder(3000).build(),
-                locationCallback,
-                Looper.getMainLooper()
-            )
+    // Start location updates
+    fun startLocationUpdates() {
+        locationManager.startLocationUpdates()
+
+        if (!locationLiveData.hasActiveObservers()) {
+            // Observe location live data if no observers
+            locationLiveData.observeForever { location ->
+                val oldUserLocation = _coursesUiState.value.userLastKnownLocation
+                _coursesUiState.value = _coursesUiState.value.copy(userLastKnownLocation = location)
+
+                // If distance is 5000m or greater to old distance, update nearby courses
+                if (calculateDistanceMeters(
+                        oldUserLocation.latitude,
+                        oldUserLocation.longitude,
+                        location.latitude,
+                        location.longitude
+                    ) >= 5000) {
+                    getNearbySortedCourses()
+                    saveLastKnownLocation()
+                }
+            }
         }
     }
 
+    private val threshold = 20f
+    private var lastAzimuth = 0f
+    fun startOrientationUpdates() {
+        orientationSensorManager.startOrientationUpdates()
+
+        viewModelScope.launch {
+            azimuthLiveData
+                .collect { azimuth ->
+                    val diff = abs(azimuth - lastAzimuth)
+                    if (diff > threshold) {
+                        lastAzimuth = azimuth
+                        _coursesUiState.value = _coursesUiState.value.copy(deviceOrientation = azimuth)
+                        Log.d("orientation", azimuth.toString())
+                    }
+                }
+        }
+    }
+
+    fun stopOrientationUpdates() {
+        orientationSensorManager.stopOrientationUpdates()
+    }
+
+
     // Stop location updates
     fun stopLocationUpdates() {
-        locationClient.removeLocationUpdates(locationCallback)
+        locationManager.stopLocationUpdates()
         saveLastKnownLocation()
     }
 

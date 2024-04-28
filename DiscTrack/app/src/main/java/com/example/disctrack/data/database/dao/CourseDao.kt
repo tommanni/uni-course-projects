@@ -30,9 +30,21 @@ interface CourseDao {
     @Query("SELECT * FROM rounds")
     suspend fun getAllRounds(): MutableList<Round>
 
-    @Query("SELECT * FROM played_holes WHERE courseId = :courseId")
-    fun getRoundPlayedHoles(courseId: String): MutableList<PlayedHole>
+    @Query("SELECT * FROM played_holes WHERE roundId = :roundId")
+    suspend fun getRoundPlayedHoles(roundId: String): MutableList<PlayedHole>
 
-    @Query("SELECT courseId FROM rounds ORDER BY date")
+    @Query("SELECT courseId FROM rounds ORDER BY date DESC")
     suspend fun getPlayedCourseIdList(): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertRound(round: Round): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPlayedHole(playedHole: PlayedHole)
+
+    @Query("SELECT * FROM rounds ORDER BY date")
+    suspend fun getRoundsOrderedByDate(): MutableList<Round>
+
+    @Query("SELECT * FROM played_holes WHERE roundId = :roundId")
+    suspend fun getPlayedHolesForRound(roundId: Int): MutableList<PlayedHole>
 }

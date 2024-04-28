@@ -3,7 +3,9 @@ package com.example.disctrack.data.database.entities
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-
+/**
+ * Represents a played round of disc golf
+ */
 @Entity(tableName = "rounds")
 data class Round (
     @PrimaryKey(autoGenerate = true)

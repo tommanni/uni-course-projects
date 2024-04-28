@@ -29,6 +29,7 @@ class HomeViewModel @Inject constructor(
     private fun getPlayedRounds() {
         viewModelScope.launch {
             val playedRounds = courseDbRepository.getAllRounds()
+            _homeUiState.value = _homeUiState.value.copy(playedRounds = playedRounds)
         }
     }
 }

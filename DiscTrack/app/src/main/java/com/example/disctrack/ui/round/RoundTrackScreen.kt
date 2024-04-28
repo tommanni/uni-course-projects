@@ -1,53 +1,82 @@
 package com.example.disctrack.ui.round
 
-import android.content.res.Resources.Theme
+import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.bundleOf
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.disctrack.R
+import com.example.disctrack.data.model.Basket
+import com.example.disctrack.ui.home.HomeDestination
 import com.example.disctrack.ui.navigation.NavigationDestination
-import com.example.disctrack.ui.theme.md_theme_dark_onPrimary
-import com.example.disctrack.ui.theme.md_theme_dark_onSurface
-import com.example.disctrack.ui.theme.md_theme_dark_surface
-import com.example.disctrack.ui.theme.md_theme_light_tertiary
+import com.example.disctrack.ui.theme.md_theme_dark_background
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 object RoundTrackDestination: NavigationDestination {
     override val route: String = "track/{courseId}/{courseName}"
@@ -56,121 +85,518 @@ object RoundTrackDestination: NavigationDestination {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun RoundTrackScreenTopAppBar(
+    setShowDialog: () -> Unit,
+    courseName: String?,
+    modifier: Modifier = Modifier
+) {
+    CenterAlignedTopAppBar(
+        title = { Text(courseName ?: "") },
+        // TODO: ask user if he wants to leave
+        navigationIcon = { IconButton(onClick = { setShowDialog() }) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Stop round icon")
+        }}
+    )
+}
+
+/**
+ * Screen to track a disc golf round
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 fun RoundTrackScreen(
     navController: NavController,
     courseId: String?,
     courseName: String?,
     modifier: Modifier = Modifier
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
+    // Initialize with ViewModelFactory to pass courseId as parameter
     val viewModel = hiltViewModel<
             RoundTrackViewModel,
             RoundTrackViewModel.RoundTrackViewModelFactory> { factory ->
         factory.create(courseId!!)
     }
+    
     val uiState = viewModel.roundUiState.collectAsState()
+
+    // Tracks if alert dialog is shown when user tries to leave tracking screen
+    var showLeaveDialog by remember { mutableStateOf(false)}
+    var showNoBasketsDialog by remember { mutableStateOf(false) }
+
+    // If no baskets available in api, show alert to ask for basket count
+    if (uiState.value.basketCount == 1) {
+        showNoBasketsDialog = true
+    }
+
+    // lazyListState to hold state for LazyRow
+    val lazyListState = rememberLazyListState()
+
+    // State for horizontal pager
+    val pagerState = rememberPagerState(initialPage = 0) {
+        uiState.value.course.baskets?.size ?: 0
+    }
+
+    // Shows alert dialog if user presses system back button
+    BackHandler {
+        if (!showLeaveDialog) {
+            showLeaveDialog = true
+        }
+    }
+
+    if (showLeaveDialog) {
+        LeaveRoundTrackingAlert(
+            navController = navController,
+            setShowDialog = { showLeaveDialog = false }
+        )
+    }
+
+    if (showNoBasketsDialog) {
+        NoBasketsAlert(
+            navController = navController,
+            setBaskets = viewModel::setBaskets,
+            setShowDialog = { showNoBasketsDialog = false }
+        )
+    }
+
+    val currentBasketIndex = uiState.value.currentBasketIndex
+    // Triggers when current basket index changes and scrolls to that page
+    LaunchedEffect(currentBasketIndex) {
+        pagerState.animateScrollToPage(currentBasketIndex)
+        lazyListState.animateScrollToItem(currentBasketIndex)
+    }
+
+    // Triggers when user swipes between screens and sets current basket
+    LaunchedEffect(pagerState.currentPage) {
+        viewModel.setCurrentBasket(pagerState.currentPage)
+    }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(courseName ?: "") },
-                // TODO: ask user if he wants to leave
-                navigationIcon = { IconButton(onClick = { navController.navigateUp() }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Stop round icon")
-                }}
-            )
-        },
+            RoundTrackScreenTopAppBar(
+            setShowDialog = { showLeaveDialog = true },
+            courseName = courseName
+            ) },
         bottomBar = {
-            if (true) {
-                Button(
-                    onClick = { /*TODO*/ },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        "Finish Round",
-                        fontSize = 16.sp
+            NavigateHolesBottomBar(
+                uiState = uiState,
+                setCurrentBasket = viewModel::setCurrentBasket,
+                lazyListState = lazyListState,
+                coroutineScope = coroutineScope,
+                pagerState = pagerState
+            )
+        }
+    ) { paddingValues ->
+        val currentBasket = uiState.value.course.baskets?.get(uiState.value.currentBasketIndex)
+
+        HorizontalPager(state = pagerState) {page ->
+            when (currentBasket?.number) {
+                "Finish" -> RoundFinishPage(
+                    uiState = uiState,
+                    savePlayedRound = viewModel::savePlayedRound,
+                    navController = navController,
+                    modifier = modifier.padding(paddingValues)
+                )
+                else -> CurrentBasketPage(
+                    currentBasket = currentBasket,
+                    holeScore = uiState.value.scores[page],
+                    viewModel = viewModel,
+                    modifier = modifier.padding(paddingValues)
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+fun CurrentBasketPage(
+    currentBasket: Basket?,
+    holeScore: Int,
+    viewModel: RoundTrackViewModel,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        HoleInfoRow(currentBasket = currentBasket)
+        Spacer(modifier = Modifier.size(16.dp))
+        HoleScoreAdjustRow(
+            holeScore = holeScore,
+            viewModel = viewModel
+        )
+    }
+}
+
+@Composable
+fun RoundFinishPage(
+    uiState: State<RoundUiState>,
+    savePlayedRound: () -> Unit,
+    navController: NavController,
+    modifier: Modifier = Modifier
+) {
+    val roundDone = !uiState.value.scores.take(uiState.value.scores.size - 1).contains(0)
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(dimensionResource(R.dimen.padding_medium)),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = "Final",
+                    color = Color.LightGray
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "1 - ${uiState.value.course.baskets?.size!! - 1}",
+                    fontSize = 24.sp
+                )
+            }
+            Text(
+                (if (uiState.value.roundScore > 0) "+" else "") +
+                        "${if (uiState.value.roundScore == 0) "E" else uiState.value.roundScore}" +
+                        " (${uiState.value.courseTotalPar})",
+                fontSize = 24.sp
+            )
+        }
+
+        Text(
+            text = if (roundDone) "ALL SCORES ENTERED" else "SCORES ARE MISSING",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (roundDone) Color.DarkGray else Color.LightGray,
+            modifier = Modifier
+                .padding(vertical = 16.dp)
+                .fillMaxWidth()
+                .background(
+                    if (roundDone) Color.Green else Color.Red
+                ),
+            textAlign = TextAlign.Center,
+        )
+
+        Row(
+            Modifier
+                .fillMaxWidth(),
+        ) {
+            val baskets = uiState.value.course.baskets?.take(uiState.value.course.baskets!!.size - 1)
+            val scores = uiState.value.scores.take(uiState.value.course.baskets!!.size - 1)
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Hole")
+                baskets?.forEach { basket ->
+                    HorizontalDivider(
+                        thickness = 2.dp,
+                        color = Color.LightGray
                     )
+                    Text(basket.number ?: "0")
                 }
-            } else {
-                OutlinedButton(
-                    onClick = { /*TODO*/ },
-                    modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "Finish Round",
-                        fontSize = 16.sp
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Par")
+                baskets?.forEach { basket ->
+                    HorizontalDivider(
+                        thickness = 2.dp,
+                        color = Color.LightGray
                     )
+                    Text(basket.par ?: "0")
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Score")
+                scores.forEach { score ->
+                    HorizontalDivider(
+                        thickness = 2.dp,
+                        color = Color.LightGray
+                    )
+                    Text(if (score == 0) "-" else score.toString())
                 }
             }
         }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = modifier
+
+        Button(
+            onClick = {
+                savePlayedRound()
+                navController.popBackStack(
+                    route = HomeDestination.route,
+                    inclusive = true
+                )
+            },
+            shape = RoundedCornerShape(8.dp),
+            enabled = roundDone,
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(paddingValues)
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .padding(vertical = 16.dp),
+
+            ) {
+            Text("Finish")
+        }
+    }
+}
+
+@Composable
+fun HoleInfoRow(
+    currentBasket: Basket?,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        horizontalArrangement = Arrangement.SpaceAround,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = "Hole",
+                color = Color.LightGray
+            )
+            Text(
+                text = currentBasket?.number ?: "",
+                fontSize = 24.sp
+            )
+        }
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = currentBasket?.length ?: "",
+                fontSize = 24.sp
+            )
+            Text(
+                text = if (currentBasket?.length != null) "m" else "",
+                color = Color.LightGray
+            )
+        }
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = if (currentBasket?.par != null) "Par" else "",
+                color = Color.LightGray
+            )
+            Text(
+                text = currentBasket?.par ?: "",
+                fontSize = 24.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun HoleScoreAdjustRow(
+    holeScore: Int,
+    viewModel: RoundTrackViewModel,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier.padding(end = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            onClick = {
+                if (holeScore == 0) {
+                    viewModel.setHoleScoreToInitialScore()
+                } else if (holeScore > 1) {
+                    viewModel.decrementHoleScore()
+                }
+            }
         ) {
-            if (uiState.value.course.baskets != null) {
-                items(uiState.value.course.baskets!!) {basket ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp, 0.dp, 12.dp, 0.dp),
-                        border = BorderStroke(2.dp, Color.Black)
+            Surface(
+                shape = CircleShape,
+                color = Color.Green,
+                contentColor = Color.Black ,
+                border = BorderStroke(2.dp, Color.Black),
+                modifier = Modifier.size(200.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Remove,
+                    contentDescription = "Remove throws icon"
+                )
+            }
+        }
+        Text(
+            text = if (holeScore == 0) "-" else holeScore.toString(),
+            fontSize = 60.sp,
+            fontWeight = FontWeight.Bold
+        )
+        IconButton(
+            onClick = {
+                if (holeScore == 0) {
+                    viewModel.setHoleScoreToInitialScore()
+                } else if (holeScore < 20) {
+                    viewModel.incrementHoleScore()
+                }
+            },
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = Color.Green,
+                contentColor = Color.Black,
+                border = BorderStroke(2.dp, Color.Black),
+                modifier = Modifier.size(200.dp)
+            ) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Add throws icon"
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun NavigateHolesBottomBar(
+    lazyListState: LazyListState,
+    pagerState: PagerState,
+    uiState: State<RoundUiState>,
+    setCurrentBasket: (Int) -> Unit,
+    coroutineScope: CoroutineScope,
+    modifier: Modifier = Modifier
+) {
+
+
+    LazyRow(
+        modifier = Modifier.height(48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        state = lazyListState
+    ) {
+        item {
+            Spacer(modifier = modifier.size(40.dp))
+        }
+        if (uiState.value.course.baskets != null) {
+            itemsIndexed(uiState.value.course.baskets!!) { index, basket ->
+                val selected = index == uiState.value.currentBasketIndex
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            setCurrentBasket(index)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(md_theme_dark_background),
+                    modifier = Modifier
+                        .width(100.dp),
+                    shape = RoundedCornerShape(0.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = basket.number ?: "",
-                                fontSize = 40.sp,
+                        Text(
+                            text = basket.number!!,
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                        if (selected) {
+                            Divider(
+                                color = Color.Green,
                                 modifier = Modifier
-                                    .padding(20.dp)
+                                    .height(4.dp)
+                                    .fillMaxWidth()
                             )
-                            Row(
-                                Modifier.padding(end = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                IconButton(onClick = { /*TODO*/ }) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = Color.DarkGray,
-                                        contentColor = Color.Black ,
-                                        border = BorderStroke(2.dp, Color.Black),
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Remove,
-                                            contentDescription = "Remove throws icon"
-                                        )
-                                    }
-                                }
-                                Text("3", fontSize = 30.sp)
-                                IconButton(onClick = { /*TODO*/ }) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = Color.DarkGray,
-                                        contentColor = Color.Black,
-                                        border = BorderStroke(2.dp, Color.Black),
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Filled.Add,
-                                            contentDescription = "Add throws icon"
-                                        )
-                                    }
-                                }
-                            }
                         }
                     }
                 }
             }
         }
+        item {
+            Spacer(modifier = modifier.size(40.dp))
+        }
     }
 }
+
+@Composable
+fun NoBasketsAlert(
+    navController: NavController,
+    setBaskets: (Int) -> Unit,
+    setShowDialog: () -> Unit
+) {
+    var basketCountValue by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = { navController.navigateUp() },
+        title = {
+            Text("No baskets found for course")
+        },
+        text = {
+            Column {
+                Text(text = "Enter number of holes to track round")
+                Spacer(modifier = Modifier.size(16.dp))
+                OutlinedTextField(
+                    value = basketCountValue,
+                    label = { Text("Holes") },
+                    onValueChange = {
+                        basketCountValue = if (it.length <= 2) it else basketCountValue
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    visualTransformation = VisualTransformation.None,
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                setBaskets(basketCountValue.toInt())
+                setShowDialog()
+            }
+            ) {
+                Text("Confirm")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                navController.navigateUp()
+            }) {
+                Text("Dismiss")
+            }
+        }
+    )
+}
+
+@Composable
+fun LeaveRoundTrackingAlert(
+    navController: NavController,
+    setShowDialog: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { setShowDialog() },
+        title = {
+            Text("Leave round tracking?")
+        },
+        text = {
+            Text("All round tracking data for the round will be lost.")
+        },
+        confirmButton = {
+            TextButton(onClick = { navController.navigateUp() }) {
+                Text("Confirm")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { setShowDialog() }) {
+                Text("Dismiss")
+            }
+        }
+    )
+}
+
+
+
+

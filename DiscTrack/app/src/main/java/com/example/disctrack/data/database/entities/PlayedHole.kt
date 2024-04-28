@@ -1,15 +1,19 @@
 package com.example.disctrack.data.database.entities
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
+/**
+ * Represents a played hole in a round of disc golf
+ */
 @Entity(tableName = "played_holes")
 data class PlayedHole(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
-    val courseId: String,
+    val roundId: Long,
     val holeNumber: String,
     val par: Int,
     val throws: Int,
-    val length: String,
+    val length: String? = null,
 )

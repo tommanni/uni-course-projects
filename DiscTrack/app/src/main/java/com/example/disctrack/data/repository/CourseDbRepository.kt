@@ -2,6 +2,8 @@ package com.example.disctrack.data.repository
 
 import com.example.disctrack.data.database.dao.CourseDao
 import com.example.disctrack.data.database.entities.CourseItem
+import com.example.disctrack.data.database.entities.PlayedHole
+import com.example.disctrack.data.database.entities.Round
 import com.example.disctrack.data.database.entities.toCourseListItem
 import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.model.PlayedRound
@@ -31,6 +33,10 @@ class CourseDbRepository(private val courseDao: CourseDao) {
             round -> PlayedRound(round, courseDao.getRoundPlayedHoles(round.courseId))
         }.toMutableList()
     }
+
+    suspend fun insertRound(round: Round): Long = courseDao.insertRound(round)
+
+    suspend fun insertPlayedHole(playedHole: PlayedHole) = courseDao.insertPlayedHole(playedHole)
 
     suspend fun getPlayedCourseIdList(): List<String> = courseDao.getPlayedCourseIdList()
 }
