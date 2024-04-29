@@ -79,6 +79,7 @@ class CoursesViewModel @Inject constructor(
         }
     }
 
+    // Stops orientation and location updates, called when view model is destroyed
     override fun onCleared() {
         super.onCleared()
         stopOrientationUpdates()
@@ -200,24 +201,22 @@ class CoursesViewModel @Inject constructor(
         }
     }
 
-    private val threshold = 20f
-    private var lastAzimuth = 0f
+
+    // Start orientation updates and set orientation angle data to state
     fun startOrientationUpdates() {
         orientationSensorManager.startOrientationUpdates()
 
+        // Collect and set ui state with azimuth value
         viewModelScope.launch {
             azimuthLiveData
                 .collect { azimuth ->
-                    val diff = abs(azimuth - lastAzimuth)
-                    if (diff > threshold) {
-                        lastAzimuth = azimuth
-                        _coursesUiState.value = _coursesUiState.value.copy(deviceOrientation = azimuth)
-                        Log.d("orientation", azimuth.toString())
-                    }
+                    _coursesUiState.value = _coursesUiState.value.copy(deviceOrientation = azimuth)
+                    Log.d("orientation", azimuth.toString())
                 }
         }
     }
 
+    // Stop orientation updates
     fun stopOrientationUpdates() {
         orientationSensorManager.stopOrientationUpdates()
     }
