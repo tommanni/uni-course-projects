@@ -9,6 +9,7 @@ import androidx.room.Update
 import com.example.disctrack.data.database.entities.CourseItem
 import com.example.disctrack.data.database.entities.PlayedHole
 import com.example.disctrack.data.database.entities.Round
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CourseDao {
@@ -27,13 +28,13 @@ interface CourseDao {
     @Query("DELETE from courses")
     suspend fun deleteAllCourses()
 
-    @Query("SELECT * FROM rounds")
-    suspend fun getAllRounds(): MutableList<Round>
+    @Query("SELECT * FROM rounds ORDER BY date DESC, id DESC")
+    suspend fun getAllRounds(): List<Round>
 
     @Query("SELECT * FROM played_holes WHERE roundId = :roundId")
-    suspend fun getRoundPlayedHoles(roundId: String): MutableList<PlayedHole>
+    suspend fun getRoundPlayedHoles(roundId: String): List<PlayedHole>
 
-    @Query("SELECT courseId FROM rounds ORDER BY date DESC")
+    @Query("SELECT courseId FROM rounds ORDER BY date DESC, id DESC")
     suspend fun getPlayedCourseIdList(): List<String>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
