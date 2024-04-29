@@ -236,7 +236,7 @@ fun CurrentBasketPage(
 @Composable
 fun RoundFinishPage(
     uiState: State<RoundUiState>,
-    savePlayedRound: () -> Unit,
+    savePlayedRound: (() -> Unit) -> Unit,
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
@@ -335,11 +335,12 @@ fun RoundFinishPage(
 
         Button(
             onClick = {
-                savePlayedRound()
-                navController.popBackStack(
-                    route = HomeDestination.route,
-                    inclusive = true
-                )
+                savePlayedRound {
+                    navController.popBackStack(
+                        route = HomeDestination.route,
+                        inclusive = false
+                    )
+                }
             },
             shape = RoundedCornerShape(8.dp),
             enabled = roundDone,
