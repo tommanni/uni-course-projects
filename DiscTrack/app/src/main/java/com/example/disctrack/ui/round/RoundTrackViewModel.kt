@@ -149,7 +149,7 @@ class RoundTrackViewModel @AssistedInject constructor(
     }
 
     // Saves the played round to database
-    fun savePlayedRound() {
+    fun savePlayedRound(onSaveCompleted: () -> Unit) {
         val round = Round(
             courseId = _roundUiState.value.course.course.id!!,
             courseName = _roundUiState.value.course.course.fullName!!,
@@ -159,28 +159,31 @@ class RoundTrackViewModel @AssistedInject constructor(
         viewModelScope.launch {
             val roundId = courseDbRepository.insertRound(round)
             savePlayedHoles(roundId)
+            onSaveCompleted()
         }
     }
 
     // Save played holes to database
-    private fun savePlayedHoles(roundId: Long) {
+    private suspend fun savePlayedHoles(roundId: Long) {
         viewModelScope.launch {
             val baskets = _roundUiState.value.course.baskets?.take(
-                _roundUiState.value.basketCount - 1
+                _roundUiState.value.basketCount
             )
             baskets?.forEachIndexed { index, basket ->
-                val playedHole = PlayedHole(
-                    roundId = roundId,
-                    holeNumber = basket.number!!,
-                    par = basket.par?.toInt()!!,
-                    throws = _roundUiState.value.scores[index]
-                )
-                courseDbRepository.insertPlayedHole(playedHole)
+                if (basket.number != "Finish") {
+                    val playedHole = PlayedHole(
+                        roundId = roundId,
+                        holeNumber = basket.number!!,
+                        par = basket.par?.toInt()!!,
+                        throws = _roundUiState.value.scores[index]
+                    )
+                    courseDbRepository.insertPlayedHole(playedHole)
+                }
             }
         }
     }
 
-    // Calculates the current round score
+    // Calculates the current round score and sets it to ui state
     private fun setRoundScore() {
         var totalScore = 0
         _roundUiState.value.scores.forEachIndexed {index, score ->
