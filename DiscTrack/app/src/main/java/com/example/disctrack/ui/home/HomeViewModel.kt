@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * HomeViewModel to handle logic for HomeScreen
+ */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val courseRepository: CourseRepository,
@@ -26,6 +29,7 @@ class HomeViewModel @Inject constructor(
         getPlayedRounds()
     }
 
+    // Get all rounds
     fun getPlayedRounds() {
         viewModelScope.launch {
             val playedRounds = courseDbRepository.getAllRounds()
@@ -34,6 +38,9 @@ class HomeViewModel @Inject constructor(
     }
 }
 
+/**
+ * HomeUiState to hold ui state for HomeScreen
+ */
 data class HomeUiState(
     val playedRounds: List<PlayedRound> = listOf()
 )
