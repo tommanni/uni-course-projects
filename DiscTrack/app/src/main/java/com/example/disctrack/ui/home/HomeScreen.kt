@@ -3,23 +3,31 @@ package com.example.disctrack.ui.home
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTimeFilled
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CardElevation
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -41,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -50,6 +59,7 @@ import com.example.disctrack.data.database.entities.Round
 import com.example.disctrack.data.model.PlayedRound
 import com.example.disctrack.ui.common.DiscTrackBottomAppBar
 import com.example.disctrack.ui.navigation.NavigationDestination
+import kotlin.math.roundToInt
 
 object HomeDestination : NavigationDestination {
     override val route: String = "home"
@@ -117,15 +127,18 @@ fun HomeBody(
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier
+        modifier = modifier,
+        contentPadding = PaddingValues(0.dp)
     ) {
         items(playedRounds) {round ->
             var expanded by remember { mutableStateOf(false) }
 
             Card(
-                modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
+                    .clickable { expanded = !expanded  },
+                elevation = CardDefaults.elevatedCardElevation(5.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -145,12 +158,31 @@ fun HomeBody(
                         Column {
                             Text(
                                 round.round.courseName,
-                                fontSize = 20.sp
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
                             )
-                            Text(
-                                text = round.round.date,
-
-                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AccessTimeFilled,
+                                    contentDescription = "Time icon",
+                                    Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = round.round.date
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Filled.LocationOn,
+                                    contentDescription = "Location icon",
+                                    Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = round.round.courseLocation+ ", Finland"
+                                )
+                            }
                         }
                         IconButton(
                             onClick = { expanded = !expanded }
@@ -166,13 +198,37 @@ fun HomeBody(
                         }
                     }
                     if (expanded) {
-                        Column {
-                            Text(text = round.round.courseLocation, Modifier.padding(8.dp))
-                            Text(text = round.baskets.size.toString() + " baskets")
-                        }
+                        RoundInfoColumn(round = round)
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun RoundInfoColumn(
+    round: PlayedRound,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .padding(8.dp)
+    ) {
+        val score = (round.baskets.sumOf { it.par } - round.baskets.sumOf { it.throws })
+        val sign = if (score > 0) "+" else ""
+        val birdies = round.baskets.filter { it.par - it.throws == -1 }.size
+        val birdiePercentage = (birdies.toFloat() / round.baskets.size * 100).roundToInt()
+        Row {
+            Text("Score: $sign$score")
+            Spacer(Modifier.width(4.dp))
+            Text("(" + round.baskets.sumOf { it.throws }.toString() + ")")
+        }
+        Row {
+            Text(
+                "Birdies: $birdiePercentage% ($birdies)"
+
+            )
         }
     }
 }
