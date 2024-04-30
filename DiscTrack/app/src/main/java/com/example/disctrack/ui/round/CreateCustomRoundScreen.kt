@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.os.bundleOf
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavOptions
 import com.example.disctrack.R
@@ -50,10 +52,11 @@ object CreateCustomRoundDestination: NavigationDestination {
 @Composable
 fun CreateCustomRoundScreen(
     navController: NavController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: CreateCustomRoundViewModel = hiltViewModel()
 ) {
-    var courseNameValue by remember { mutableStateOf("") }
-    var basketCountValue by remember { mutableStateOf("") }
+    val uiState = viewModel.customRoundUiState.collectAsState()
+
     val focusManager = LocalFocusManager.current
     // State for currently selected button
     var selectedButton by remember { mutableStateOf("") }
@@ -78,8 +81,8 @@ fun CreateCustomRoundScreen(
         ) {
             Text(text = "Course name")
             OutlinedTextField(
-                value = courseNameValue,
-                onValueChange = { courseNameValue = it },
+                value = uiState.value.courseNameValue,
+                onValueChange = { viewModel.setCourseNameValue(it) },
                 label = { Text("Enter a course name") },
                 shape = RoundedCornerShape(8.dp),
                 singleLine = true,
@@ -121,7 +124,8 @@ fun CreateCustomRoundScreen(
                         OutlinedButton(
                             onClick = {
                                 selectedButton = button
-                                basketCountValue = if (button != "Other") button else ""
+                                val value = if (button != "Other") button else ""
+                                viewModel.setBasketCountValue(value)
                             },
                             shape = shape
                         ) {
@@ -133,10 +137,12 @@ fun CreateCustomRoundScreen(
                 }
                 if (selectedButton == "Other") {
                     OutlinedTextField(
-                        value = basketCountValue,
+                        value = uiState.value.basketCountValue,
                         label = { Text("Holes") },
                         onValueChange = {
-                            basketCountValue = if (it.length <= 2) it else basketCountValue
+                            if (it.length <= 2) {
+                                viewModel.setBasketCountValue(it)
+                            }
                         },
                         shape = RoundedCornerShape(8.dp),
                         singleLine = true,
@@ -156,16 +162,10 @@ fun CreateCustomRoundScreen(
             }
             Button(
                 onClick = {
-                    val bundle = bundleOf(
-                        "courseName" to courseNameValue,
-                        "basketCount" to basketCountValue.toInt(),
-                        "isCustomRound" to true
-                    )
                     // TODO
-                    //navController.navigate("track", bundle)
                           },
                 shape = RoundedCornerShape(8.dp),
-                enabled = basketCountValue != "" && courseNameValue != "",
+                enabled = uiState.value.basketCountValue != "" && uiState.value.courseNameValue != "",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp),
