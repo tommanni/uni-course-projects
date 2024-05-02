@@ -105,6 +105,9 @@ dependencies {
     // WorkManager dependency
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
+    // Charts library YCharts
+    implementation("co.yml:ycharts:2.1.0")
+
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
