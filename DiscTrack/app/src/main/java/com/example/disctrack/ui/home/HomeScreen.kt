@@ -1,5 +1,6 @@
 package com.example.disctrack.ui.home
 
+import android.util.Log
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -66,6 +67,9 @@ object HomeDestination : NavigationDestination {
     override val titleRes = R.string.app_name
 }
 
+/**
+ * Home screen to view played rounds and start a round
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -180,7 +184,11 @@ fun HomeBody(
                                     Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = round.round.courseLocation+ ", Finland"
+                                    text =
+                                    if (round.round.courseLocation == "")
+                                            "Finland"
+                                    else
+                                        round.round.courseLocation
                                 )
                             }
                         }
@@ -215,9 +223,10 @@ fun RoundInfoColumn(
         modifier = modifier
             .padding(8.dp)
     ) {
-        val score = (round.baskets.sumOf { it.par } - round.baskets.sumOf { it.throws })
+        val score = (round.baskets.sumOf { it.throws } - round.baskets.sumOf { it.par })
         val sign = if (score > 0) "+" else ""
-        val birdies = round.baskets.filter { it.par - it.throws == -1 }.size
+        val birdies = round.baskets.filter { it.par - it.throws == 1 }.size
+        Log.d("ROundinfo", " " + birdies + round.baskets.size)
         val birdiePercentage = (birdies.toFloat() / round.baskets.size * 100).roundToInt()
         Row {
             Text("Score: $sign$score")
@@ -229,6 +238,13 @@ fun RoundInfoColumn(
                 "Birdies: $birdiePercentage% ($birdies)"
 
             )
+        }
+        if (round.round.rating != 0) {
+            Row {
+                Text(
+                    "Rating: ${round.round.rating}"
+                )
+            }
         }
     }
 }

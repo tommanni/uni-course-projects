@@ -115,13 +115,7 @@ class CoursesViewModel @Inject constructor(
                 val shownCourses = if (value.length < 3) {
                     _coursesUiState.value.nearbyCourses
                 } else {
-                    // Else fetch courses by name and join with courses by location
-                    val coursesResponse = courseRepository.getCoursesByName(value)
-                    // If courses are null, add empty list
-                    val courses = coursesResponse.courses ?: emptyList()
-                    courses + _coursesUiState.value.courses.filter { course ->
-                        course.city?.lowercase()?.contains(value.lowercase()) ?: false
-                    }
+                    courseDbRepository.getCoursesByName(value.lowercase())
                 }
                 _coursesUiState.value = _coursesUiState.value.copy(shownCourses = shownCourses)
             } catch (e: IOException) {

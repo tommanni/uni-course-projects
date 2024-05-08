@@ -100,7 +100,7 @@ data class Basket(
  */
 @Serializable
 data class CourseResponse(
-    val course: Course,
+    val course: Course? = null,
     val baskets: List<Basket>? = null,
     @SerialName(value = "Errors")
     val errors: List<String>? = null

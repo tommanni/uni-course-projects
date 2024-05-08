@@ -29,7 +29,7 @@ private const val TAG = "RoundTrackViewModel"
  */
 @HiltViewModel(assistedFactory = RoundTrackViewModel.RoundTrackViewModelFactory::class)
 class RoundTrackViewModel @AssistedInject constructor(
-    @Assisted val courseId: String,
+    @Assisted private val assistedParams: AssistedParams,
     private val courseRepository: CourseRepository,
     private val courseDbRepository: CourseDbRepository
 ): ViewModel() {
@@ -37,7 +37,7 @@ class RoundTrackViewModel @AssistedInject constructor(
     // Provide courseId to viewModel with RoundTrackViewModelFactory
     @AssistedFactory
     interface RoundTrackViewModelFactory {
-        fun create(courseId: String): RoundTrackViewModel
+        fun create(assistedParams: AssistedParams): RoundTrackViewModel
     }
 
     private val _roundUiState = MutableStateFlow(RoundUiState())
@@ -51,10 +51,12 @@ class RoundTrackViewModel @AssistedInject constructor(
     private fun fetchCourse() {
         viewModelScope.launch {
             try {
-                var courseResponse = courseRepository.getCourseById(courseId)
+                var courseResponse = courseRepository.getCourseById(assistedParams.courseId)
                 // Add finish as a basket to course response to use as finish screen button
                 val finish = Basket(number = "Finish")
-                courseResponse = courseResponse.copy(baskets = courseResponse.baskets?.plus(finish))
+                courseResponse = courseResponse.copy(
+                    baskets = courseResponse.baskets?.plus(finish)
+                )
                 val basketCount = courseResponse.baskets?.size ?: 1
                 val hasBasketApiData = basketCount != 1
                 var courseTotalPar = 0
@@ -80,6 +82,21 @@ class RoundTrackViewModel @AssistedInject constructor(
         }
     }
 
+    private fun createCustomCourse() {
+        _roundUiState.value = _roundUiState.value.copy(
+            course = CourseResponse(
+                course = Course(
+                    id = assistedParams.courseId,
+                    name = assistedParams.courseName,
+                    fullName = assistedParams.courseName,
+                    type = "1",
+                    countryCode = "FI"
+                )
+            ),
+            hasBasketApiData = true
+        )
+    }
+
     // Set current basket being tracked
     fun setCurrentBasket(basketNum: Int) {
         if (_roundUiState.value.course.baskets != null) {
@@ -95,8 +112,7 @@ class RoundTrackViewModel @AssistedInject constructor(
         val index = _roundUiState.value.currentBasketIndex
         scores[index] -= 1
         _roundUiState.value = _roundUiState.value.copy(
-            scores = scores,
-
+            scores = scores
         )
         setRoundScore()
     }
@@ -150,17 +166,64 @@ class RoundTrackViewModel @AssistedInject constructor(
 
     // Saves the played round to database
     fun savePlayedRound(onSaveCompleted: () -> Unit) {
+        val course = _roundUiState.value.course.course
+
+        val ratingValue1 = course?.ratingValue1
+        val ratingValue2 = course?.ratingValue2
+        val ratingResult1= course?.ratingResult1
+        val ratingResult2 = course?.ratingResult2
+
+        val rating = if (
+                ratingResult1 != null &&
+                ratingResult2 != null &&
+                ratingValue1 != null &&
+                ratingValue2 != null
+            ) {
+            val result = _roundUiState.value.scores.sumOf { it }
+            // Rating = (RatingValue2 - RatingValue1)*(Result - RatingResult1)/
+            // (RatingResult2 - RatingResult1)+RatingValue1
+            (ratingValue2.toFloat() - ratingValue1.toFloat()) *
+                    (result.toFloat() - ratingResult1.toFloat())/
+                    (ratingResult2.toFloat() - ratingResult1.toFloat()) +
+                    ratingValue1.toFloat()
+        } else {
+            0
+        }
+
         val round = Round(
-            courseId = _roundUiState.value.course.course.id!!,
-            courseName = _roundUiState.value.course.course.fullName!!,
-            courseLocation = _roundUiState.value.course.course.city ?: "",
-            date = getCurrentDateFormatted()
+            courseId = assistedParams.courseId,
+            courseName = assistedParams.courseName,
+            courseLocation = _roundUiState.value.course.course?.city ?: "",
+            date = getCurrentDateFormatted(),
+            rating = rating.toInt()
         )
+
         viewModelScope.launch {
             val roundId = courseDbRepository.insertRound(round)
             savePlayedHoles(roundId)
             onSaveCompleted()
         }
+    }
+
+    fun updateHoleParValue(par: String, holeNumber: String) {
+        var oldPar = ""
+        val baskets = _roundUiState.value.course.baskets?.map { basket ->
+            if (basket.number == holeNumber) {
+                oldPar = basket.par!!
+                basket.copy(
+                    par = par
+                )
+            } else {
+                basket
+            }
+        }
+        val newCourseTotalPar = _roundUiState.value.courseTotalPar + (par.toInt() - oldPar.toInt())
+        _roundUiState.value = _roundUiState.value.copy(
+            course = _roundUiState.value.course.copy(
+                baskets = baskets
+            ),
+            courseTotalPar = newCourseTotalPar
+        )
     }
 
     // Save played holes to database
@@ -207,4 +270,12 @@ data class RoundUiState(
     val roundScore: Int = 0,
     val currentBasketIndex: Int = 0,
     val hasBasketApiData: Boolean = true
+)
+
+/**
+ * data class for injecting parameters to viewModel
+ */
+data class AssistedParams(
+    val courseId: String,
+    val courseName: String
 )

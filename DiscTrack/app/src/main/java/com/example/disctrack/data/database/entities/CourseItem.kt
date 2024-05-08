@@ -5,7 +5,9 @@ import androidx.room.PrimaryKey
 import com.example.disctrack.data.model.CourseListItem
 import kotlinx.serialization.SerialName
 
-
+/**
+ * Represents a course in courses database table
+ */
 @Entity(tableName = "courses")
 data class CourseItem(
     @PrimaryKey(autoGenerate = true)

@@ -10,6 +10,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.qualifiers.ApplicationContext
 
+/**
+ * OrientationModule for dependency injection with Hilt
+ */
 @Module
 @InstallIn(ViewModelComponent::class)
 class OrientationModule {

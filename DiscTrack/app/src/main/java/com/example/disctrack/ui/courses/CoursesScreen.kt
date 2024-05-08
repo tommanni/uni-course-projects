@@ -109,10 +109,8 @@ fun DiscTrackTopAppBar(
             IconButton(
                 onClick = {
                     if (showingListView) {
-                        Log.d("listview", "start")
                         startOrientationUpdates()
                     } else {
-                        Log.d("listview", "stop")
                         stopOrientationUpdates()
                     }
                     setShowingListView()
@@ -132,9 +130,11 @@ fun DiscTrackTopAppBar(
     )
 }
 
+/**
+ * Courses screen to view available courses
+ */
 @Composable
 fun CoursesScreen(
-    hasLocationPermission: Boolean,
     viewModel: CoursesViewModel = hiltViewModel()
 ) {
     val coursesUiState by viewModel.coursesUiState.collectAsState()
@@ -345,6 +345,7 @@ fun CoursesMap(
 
     val currentPosition = LatLng(userLastKnownLocation.latitude, userLastKnownLocation.longitude)
 
+    // Map ui component
     GoogleMap(
         cameraPositionState = cameraPositionState,
         properties = mapProperties,
@@ -354,7 +355,6 @@ fun CoursesMap(
         val currentLocationIcon = BitmapDescriptorFactory.fromResource(
             R.drawable.current_location_2_64
         )
-        /*TODO: Implement device orientation to location marker */
         Marker(
             state = MarkerState(currentPosition),
             contentDescription = "Current location marker",
@@ -419,12 +419,12 @@ fun CustomRendererClustering(
         Card {
             Column( Modifier.padding(dimensionResource(R.dimen.padding_medium))) {
                 Text(
-                    selectedCourseResponse.course.fullName ?: "Default"
+                    selectedCourseResponse.course?.fullName ?: "Default"
                     //selectedCourse?.fullName ?: "Default"
                 )
                 Row {
                     Icon(Icons.Filled.LocationOn, "Course location icon")
-                    Text("${selectedCourseResponse.course.city}, Finland")
+                    Text("${selectedCourseResponse.course?.city}, Finland")
                     selectedCourseResponse.baskets?.let { Text(" \u00B7 ${it.size} holes") }
                 }
             }

@@ -50,11 +50,13 @@ object RoundSetupDestination: NavigationDestination {
     override val titleRes: Int = R.string.round_setup_title
 }
 
+/**
+ * Round setup screen to setup a round of disc golf
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoundSetupScreen(
     modifier: Modifier = Modifier,
-    hasLocationPermission: Boolean,
     viewModel: CoursesViewModel = hiltViewModel(),
     navController: NavController
 ) {
@@ -110,6 +112,9 @@ fun RoundSetupScreen(
     }
 }
 
+/**
+ * Buttons to select which courses to show
+ */
 @Composable
 fun SelectCoursesButtons(
     setCoursesByButton: (String) -> Unit,
@@ -229,7 +234,9 @@ fun CourseListItem(
             .fillMaxWidth()
             .padding(dimensionResource(R.dimen.padding_small))
             .clickable {
-                navigateToRoundTrack("track/" + course.id + "/" + course.fullName)
+                navigateToRoundTrack(
+                    "track/" + course.id + "/" + course.fullName
+                )
             }
     ) {
         course.fullName?.let { Text(text = it) }
@@ -242,6 +249,9 @@ fun CourseListItem(
     )
 }
 
+/**
+ * Custom option to make a custom scorecard
+ */
 @Composable
 fun CustomOption(
     navigateToCustomRoundScreen: () -> Unit,

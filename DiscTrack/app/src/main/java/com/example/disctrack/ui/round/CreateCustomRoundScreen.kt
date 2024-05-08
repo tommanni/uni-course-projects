@@ -3,6 +3,7 @@ package com.example.disctrack.ui.round
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,6 +49,9 @@ object CreateCustomRoundDestination: NavigationDestination {
 
 }
 
+/**
+ * Screen to create a custom round of disc golf
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateCustomRoundScreen(
@@ -58,8 +62,6 @@ fun CreateCustomRoundScreen(
     val uiState = viewModel.customRoundUiState.collectAsState()
 
     val focusManager = LocalFocusManager.current
-    // State for currently selected button
-    var selectedButton by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -95,77 +97,15 @@ fun CreateCustomRoundScreen(
                 modifier = Modifier.fillMaxWidth(),
 
             )
-            Text(
-                "Number of holes",
-                Modifier.padding(top = 16.dp)
-            )
-            Row(Modifier.fillMaxWidth()) {
-                // Create buttons to select which courses to show
-                val buttons = listOf("9", "18", "Other")
-                buttons.forEach { button ->
-                    val isSelected = button == selectedButton
-                    // Adjust shape of button based on order
-                    val shape = when (button) {
-                        buttons.first() -> RoundedCornerShape(8.dp, 0.dp, 0.dp, 8.dp)
-                        buttons.last() -> RoundedCornerShape(0.dp, 8.dp, 8.dp, 0.dp)
-                        else -> RoundedCornerShape(0.dp)
-                    }
-                    // If button is selected, highlight it by using filled button, else use outlined one
-                    if (isSelected) {
-                        Button(
-                            onClick = { }, // Because button is already selected, do nothing
-                            shape = shape
-                        ) {
-                            Text(
-                                text = button
-                            )
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = {
-                                selectedButton = button
-                                val value = if (button != "Other") button else ""
-                                viewModel.setBasketCountValue(value)
-                            },
-                            shape = shape
-                        ) {
-                            Text(
-                                text = button
-                            )
-                        }
-                    }
-                }
-                if (selectedButton == "Other") {
-                    OutlinedTextField(
-                        value = uiState.value.basketCountValue,
-                        label = { Text("Holes") },
-                        onValueChange = {
-                            if (it.length <= 2) {
-                                viewModel.setBasketCountValue(it)
-                            }
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        singleLine = true,
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                // Lose focus
-                                focusManager.clearFocus(true)
-                            }
-                        ),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        visualTransformation = VisualTransformation.None,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                    )
-                }
 
-            }
             Button(
                 onClick = {
-                    // TODO
+                        navController.navigate(
+                            "track/" + "0" + "/" + uiState.value.courseNameValue
+                        )
                           },
                 shape = RoundedCornerShape(8.dp),
-                enabled = uiState.value.basketCountValue != "" && uiState.value.courseNameValue != "",
+                enabled = uiState.value.courseNameValue != "",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp),

@@ -15,6 +15,9 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 
+/**
+ * LocationManager for handling user location logic
+ */
 class LocationManager(private val context: Context) {
 
     private val _locationLiveData = MutableLiveData<Location>()

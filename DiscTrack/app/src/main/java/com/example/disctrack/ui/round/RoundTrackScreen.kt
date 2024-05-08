@@ -5,6 +5,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,14 +26,20 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,6 +49,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -60,6 +70,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -112,11 +123,17 @@ fun RoundTrackScreen(
 ) {
     val coroutineScope = rememberCoroutineScope()
 
-    // Initialize with ViewModelFactory to pass courseId as parameter
+    Log.d("roundtrackscren", courseId + courseName)
+
+    // Initialize with ViewModelFactory to pass courseId and courseName as parameter
     val viewModel = hiltViewModel<
             RoundTrackViewModel,
             RoundTrackViewModel.RoundTrackViewModelFactory> { factory ->
-        factory.create(courseId!!)
+        factory.create(
+            AssistedParams(
+                courseId!!, courseName!!
+            )
+        )
     }
     
     val uiState = viewModel.roundUiState.collectAsState()
@@ -138,7 +155,7 @@ fun RoundTrackScreen(
         uiState.value.course.baskets?.size ?: 0
     }
 
-    // Shows alert dialog if user presses system back button
+    // Shows leave alert dialog if user presses system back button
     BackHandler {
         if (!showLeaveDialog) {
             showLeaveDialog = true
@@ -224,7 +241,10 @@ fun CurrentBasketPage(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        HoleInfoRow(currentBasket = currentBasket)
+        HoleInfoRow(
+            updateHoleParValue = viewModel::updateHoleParValue,
+            currentBasket = currentBasket
+        )
         Spacer(modifier = Modifier.size(16.dp))
         HoleScoreAdjustRow(
             holeScore = holeScore,
@@ -241,11 +261,13 @@ fun RoundFinishPage(
     modifier: Modifier = Modifier
 ) {
     val roundDone = !uiState.value.scores.take(uiState.value.scores.size - 1).contains(0)
-
+    val scrollState = rememberScrollState()
+    
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(dimensionResource(R.dimen.padding_medium)),
+            .padding(dimensionResource(R.dimen.padding_medium))
+            .verticalScroll(scrollState),
     ) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -357,10 +379,14 @@ fun RoundFinishPage(
 @Composable
 fun HoleInfoRow(
     currentBasket: Basket?,
+    updateHoleParValue: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showUpdateParAlert by remember { mutableStateOf(false) }
+
     Row(
         horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.fillMaxWidth()
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
@@ -383,17 +409,96 @@ fun HoleInfoRow(
                 color = Color.LightGray
             )
         }
-        Row(verticalAlignment = Alignment.Bottom) {
+        OutlinedButton(
+            onClick = { showUpdateParAlert = true },
+            shape = RoundedCornerShape(8.dp)
+        ) {
             Text(
                 text = if (currentBasket?.par != null) "Par" else "",
                 color = Color.LightGray
             )
             Text(
                 text = currentBasket?.par ?: "",
-                fontSize = 24.sp
+                fontSize = 24.sp,
+                color = Color.White
             )
         }
     }
+    if (showUpdateParAlert) {
+        UpdateHoleParAlertDialog(
+            currentBasket = currentBasket,
+            setShowDialog = { showUpdateParAlert = false },
+            updateHoleParValue = updateHoleParValue
+        )
+    }
+}
+
+@Composable
+fun UpdateHoleParAlertDialog(
+    currentBasket: Basket?,
+    updateHoleParValue: (String, String) -> Unit,
+    setShowDialog: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = {
+            setShowDialog()
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    setShowDialog()
+                },
+                modifier = Modifier
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Done")
+            }
+        },
+        title = {
+            Text(
+                text = "Update par",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Update par for this round only",
+                    fontSize = 16.sp
+                )
+                Spacer(Modifier.height(16.dp))
+                (2..6).forEach { par ->
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp)
+                            .clickable {
+                                updateHoleParValue(par.toString(), currentBasket?.number!!)
+                                setShowDialog()
+                            }
+                    ) {
+                        Text(
+                            text = "Par $par",
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (par.toString() == currentBasket?.par!!) {
+                            Icon(
+                                imageVector = Icons.Filled.Done,
+                                contentDescription = "Done icon",
+                                tint = Color.Green
+                            )
+                        }
+                    }
+                    HorizontalDivider()
+                }
+
+            }
+        },
+        shape = RoundedCornerShape(16.dp)
+    )
 }
 
 @Composable
@@ -459,6 +564,9 @@ fun HoleScoreAdjustRow(
     }
 }
 
+/**
+ * Bottom bar to navigate between holes for round
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NavigateHolesBottomBar(
@@ -521,6 +629,9 @@ fun NavigateHolesBottomBar(
     }
 }
 
+/**
+ * Alert shown when no baskets data is available for course
+ */
 @Composable
 fun NoBasketsAlert(
     navController: NavController,
@@ -528,6 +639,11 @@ fun NoBasketsAlert(
     setShowDialog: () -> Unit
 ) {
     var basketCountValue by remember { mutableStateOf("") }
+
+    // State for currently selected button
+    var selectedButton by remember { mutableStateOf("") }
+
+    val focusManager = LocalFocusManager.current
 
     AlertDialog(
         onDismissRequest = { navController.navigateUp() },
@@ -538,19 +654,66 @@ fun NoBasketsAlert(
             Column {
                 Text(text = "Enter number of holes to track round")
                 Spacer(modifier = Modifier.size(16.dp))
-                OutlinedTextField(
-                    value = basketCountValue,
-                    label = { Text("Holes") },
-                    onValueChange = {
-                        basketCountValue = if (it.length <= 2) it else basketCountValue
-                    },
-                    shape = RoundedCornerShape(8.dp),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    visualTransformation = VisualTransformation.None,
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                )
+                Row(Modifier.fillMaxWidth()) {
+                    // Create buttons to select which courses to show
+                    val buttons = listOf("9", "18", "Other")
+                    buttons.forEach { button ->
+                        val isSelected = button == selectedButton
+                        // Adjust shape of button based on order
+                        val shape = when (button) {
+                            buttons.first() -> RoundedCornerShape(8.dp, 0.dp, 0.dp, 8.dp)
+                            buttons.last() -> RoundedCornerShape(0.dp, 8.dp, 8.dp, 0.dp)
+                            else -> RoundedCornerShape(0.dp)
+                        }
+                        // If button is selected, highlight it by using filled button, else use outlined one
+                        if (isSelected) {
+                            Button(
+                                onClick = { }, // Because button is already selected, do nothing
+                                shape = shape,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = button
+                                )
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    selectedButton = button
+                                    val value = if (button != "Other") button else ""
+                                    basketCountValue = value
+                                },
+                                shape = shape,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = button
+                                )
+                            }
+                        }
+                    }
+                }
+                if (selectedButton == "Other") {
+                    OutlinedTextField(
+                        value = basketCountValue,
+                        label = { Text("Holes") },
+                        onValueChange = {
+                            if (it.length <= 2) {
+                                basketCountValue = it
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        singleLine = true,
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                // Lose focus
+                                focusManager.clearFocus(true)
+                            }
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        visualTransformation = VisualTransformation.None,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -572,6 +735,9 @@ fun NoBasketsAlert(
     )
 }
 
+/**
+ * Alert to confirm user intends to leave screen
+ */
 @Composable
 fun LeaveRoundTrackingAlert(
     navController: NavController,

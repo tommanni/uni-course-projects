@@ -25,7 +25,9 @@ import com.example.disctrack.ui.round.RoundTrackScreen
 import com.example.disctrack.ui.statistics.StatisticsDestination
 import com.example.disctrack.ui.statistics.StatisticsScreen
 
-
+/**
+ * App NavHost and navigation graph
+ */
 @Composable
 fun DiscTrackNavHost(
     navController: NavHostController,
@@ -56,17 +58,14 @@ fun DiscTrackNavHost(
                 )
             }
             composable(route = CoursesDestination.route) {
-                CoursesScreen(
-                    hasLocationPermission = hasLocationPermission
-                )
+                CoursesScreen()
             }
             composable(route = StatisticsDestination.route) {
                 StatisticsScreen()
             }
             composable(route = RoundSetupDestination.route) {
                 RoundSetupScreen(
-                    navController = navController,
-                    hasLocationPermission = hasLocationPermission
+                    navController = navController
                 )
             }
             composable(route = CreateCustomRoundDestination.route) {
