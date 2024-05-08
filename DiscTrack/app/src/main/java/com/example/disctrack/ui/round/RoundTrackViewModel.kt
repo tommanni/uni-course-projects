@@ -1,6 +1,5 @@
 package com.example.disctrack.ui.round
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.disctrack.data.database.entities.PlayedHole
@@ -8,7 +7,6 @@ import com.example.disctrack.data.database.entities.Round
 import com.example.disctrack.data.model.Basket
 import com.example.disctrack.data.model.Course
 import com.example.disctrack.data.model.CourseResponse
-import com.example.disctrack.data.model.PlayedRound
 import com.example.disctrack.data.repository.CourseDbRepository
 import com.example.disctrack.data.repository.CourseRepository
 import com.example.disctrack.ui.utils.getCurrentDateFormatted
@@ -20,7 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
-import javax.inject.Inject
 
 private const val TAG = "RoundTrackViewModel"
 

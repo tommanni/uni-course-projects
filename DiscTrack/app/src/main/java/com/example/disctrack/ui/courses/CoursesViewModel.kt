@@ -16,8 +16,6 @@ import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.model.CourseResponse
 import com.example.disctrack.data.repository.CourseDbRepository
 import com.example.disctrack.data.repository.CourseRepository
-import com.example.disctrack.data.sensors.AccelerometerSensor
-import com.example.disctrack.data.sensors.MagneticFieldSensor
 import com.example.disctrack.ui.utils.calculateDistanceMeters
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
@@ -25,16 +23,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import java.io.IOException
 import javax.inject.Inject
-import kotlin.math.abs
 
 /**
  * CoursesViewModel for uiState/logic for CoursesScreen

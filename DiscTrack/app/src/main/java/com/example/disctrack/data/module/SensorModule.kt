@@ -3,7 +3,6 @@ package com.example.disctrack.data.module
 import android.content.Context
 import com.example.disctrack.data.sensors.AccelerometerSensor
 import com.example.disctrack.data.sensors.MagneticFieldSensor
-import com.example.disctrack.data.sensors.MeasurableSensor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

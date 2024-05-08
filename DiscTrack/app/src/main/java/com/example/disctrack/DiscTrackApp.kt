@@ -1,7 +1,6 @@
 package com.example.disctrack
 
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.disctrack.ui.navigation.DiscTrackNavHost
 

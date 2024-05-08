@@ -1,6 +1,5 @@
 package com.example.disctrack.data.repository
 
-import androidx.room.Query
 import com.example.disctrack.data.database.dao.CourseDao
 import com.example.disctrack.data.database.entities.CourseItem
 import com.example.disctrack.data.database.entities.PlayedHole
@@ -10,11 +9,6 @@ import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.model.PlayedRound
 import com.example.disctrack.ui.statistics.MostPlayedCourse
 import com.example.disctrack.ui.statistics.ParPerformanceStats
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flatMapConcat
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.toList
 
 /**
  * Repository that provides insert, update, delete, and retrieve of [CourseItem] from a given data source.

@@ -1,7 +1,6 @@
 package com.example.disctrack
 
 import android.app.Application
-import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.example.disctrack.data.repository.WorkManagerCourseDataSyncRepository

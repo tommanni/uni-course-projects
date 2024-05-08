@@ -1,6 +1,5 @@
 package com.example.disctrack.data.network
 
-import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.model.CourseResponse
 import com.example.disctrack.data.model.CoursesResponse
 import retrofit2.http.GET

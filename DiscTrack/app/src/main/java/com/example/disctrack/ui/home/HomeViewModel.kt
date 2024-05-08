@@ -2,7 +2,6 @@ package com.example.disctrack.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.disctrack.data.database.entities.Round
 import com.example.disctrack.data.model.PlayedRound
 import com.example.disctrack.data.repository.CourseDbRepository
 import com.example.disctrack.data.repository.CourseRepository

@@ -3,7 +3,6 @@ package com.example.disctrack.data.database.entities
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.example.disctrack.data.model.CourseListItem
-import kotlinx.serialization.SerialName
 
 /**
  * Represents a course in courses database table

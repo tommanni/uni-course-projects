@@ -1,14 +1,11 @@
 package com.example.disctrack.data.manager
 
 import android.hardware.SensorManager
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.ui.platform.LocalContext
 import com.example.disctrack.data.sensors.AccelerometerSensor
 import com.example.disctrack.data.sensors.MagneticFieldSensor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
-import kotlin.coroutines.coroutineContext
 import kotlin.math.abs
 
 /**

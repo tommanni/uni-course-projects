@@ -1,21 +1,21 @@
 package com.example.disctrack.ui.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.navArgument
 import com.example.disctrack.ui.common.DiscTrackBottomAppBar
 import com.example.disctrack.ui.courses.CoursesDestination
 import com.example.disctrack.ui.courses.CoursesScreen
 import com.example.disctrack.ui.home.HomeDestination
 import com.example.disctrack.ui.home.HomeScreen
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.getValue
-import androidx.navigation.NavType
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.navArgument
 import com.example.disctrack.ui.home.RoundSetupDestination
 import com.example.disctrack.ui.home.RoundSetupScreen
 import com.example.disctrack.ui.round.CreateCustomRoundDestination

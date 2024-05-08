@@ -1,7 +1,6 @@
 package com.example.disctrack.data.database.entities
 
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
 /**

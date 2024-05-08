@@ -1,15 +1,8 @@
 package com.example.disctrack.data.repository
 
-import androidx.compose.ui.text.toLowerCase
-import com.example.disctrack.data.network.CourseApiService
-import com.example.disctrack.data.model.CourseListItem
 import com.example.disctrack.data.model.CourseResponse
 import com.example.disctrack.data.model.CoursesResponse
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import retrofit2.http.GET
-import retrofit2.http.Query
+import com.example.disctrack.data.network.CourseApiService
 import java.util.Locale
 import javax.inject.Inject
 
