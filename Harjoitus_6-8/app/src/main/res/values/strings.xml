@@ -1,8 +1,0 @@
-<resources>
-    <string name="app_name">WorkoutRecordsApp</string>
-    <string name="details_screen">Details</string>
-    <string name="back_button">Back button</string>
-    <string name="record_entry_title">Add a Record</string>
-    <string name="no_record_entries">No records added.\nTap + to add.</string>
-    <string name="edit_record_title">Edit Record</string>
-</resources>
